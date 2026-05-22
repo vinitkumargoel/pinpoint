@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Pinpoint — Test Plan</title>
+<style>
+  :root {
+    --bg:#f6f7f9; --panel:#ffffff; --ink:#16181d; --dim:#5b626e; --faint:#9aa1ad;
+    --line:#e6e8ec; --accent:#16181d; --blue:#2563eb;
+    --green:#16a34a; --amber:#d97706; --red:#dc2626;
+    --mono: ui-monospace, "SF Mono", Menlo, monospace;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin:0; background:var(--bg); color:var(--ink);
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; line-height:1.55;
+  }
+  a { color:var(--blue); }
+
+  /* sticky header */
+  .top {
+    position: sticky; top:0; z-index:20;
+    display:flex; align-items:center; gap:16px;
+    padding:14px 28px; background:rgba(255,255,255,0.9); backdrop-filter:blur(8px);
+    border-bottom:1px solid var(--line);
+  }
+  .top .brand { font-family:var(--mono); font-weight:700; font-size:16px; letter-spacing:-0.01em; }
+  .top .brand b { color:var(--blue); }
+  .top .meta { margin-left:auto; font-family:var(--mono); font-size:12px; color:var(--dim); }
+  .top .pill { padding:3px 9px; border:1px solid var(--line); border-radius:999px; font-size:11px; }
+
+  .wrap { max-width:920px; margin:0 auto; padding:36px 28px 120px; }
+
+  .lede { font-size:18px; color:var(--dim); margin:0 0 28px; max-width:680px; }
+  h1 { font-size:30px; letter-spacing:-0.02em; margin:8px 0 6px; }
+  h2 {
+    font-size:13px; text-transform:uppercase; letter-spacing:0.1em; color:var(--faint);
+    margin:40px 0 12px; font-family:var(--mono); font-weight:600;
+  }
+  h2 .n { color:var(--blue); }
+
+  .card { background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:6px 0; margin-bottom:18px; overflow:hidden; }
+
+  table { width:100%; border-collapse:collapse; font-size:14px; }
+  th, td { text-align:left; padding:12px 16px; vertical-align:top; }
+  th { font-size:11px; text-transform:uppercase; letter-spacing:0.07em; color:var(--faint); border-bottom:1px solid var(--line); }
+  tbody tr + tr td { border-top:1px solid var(--line); }
+  td.id { font-family:var(--mono); color:var(--faint); width:42px; }
+  td code, p code, li code { font-family:var(--mono); font-size:12.5px; background:#f0f1f4; padding:1.5px 5px; border-radius:5px; }
+
+  .status { display:inline-flex; align-items:center; gap:6px; font-family:var(--mono); font-size:11px; font-weight:600; padding:3px 9px; border-radius:999px; white-space:nowrap; }
+  .status.pass { color:var(--green); background:rgba(22,163,74,0.1); }
+  .status.todo { color:var(--amber); background:rgba(217,119,6,0.1); }
+  .status.auto { color:var(--blue); background:rgba(37,99,235,0.1); }
+
+  pre {
+    margin:0 0 18px; background:#0f1115; color:#e6e8ec; border-radius:10px;
+    padding:16px 18px; overflow:auto; font-family:var(--mono); font-size:12.5px; line-height:1.6;
+  }
+  pre .c { color:#7d8696; }
+  pre .g { color:#6ee7a8; }
+
+  ul.checks { list-style:none; padding:0; margin:0; }
+  ul.checks li { display:flex; gap:10px; padding:9px 0; border-top:1px solid var(--line); font-size:14px; }
+  ul.checks li:first-child { border-top:0; }
+  ul.checks .box { flex:0 0 18px; height:18px; margin-top:1px; border:1.5px solid var(--faint); border-radius:5px; }
+
+  .grid { display:grid; grid-template-columns:repeat(3,1fr); gap:14px; }
+  .tile { background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:18px; }
+  .tile h3 { margin:0 0 6px; font-size:15px; }
+  .tile p { margin:0; color:var(--dim); font-size:13px; }
+
+  form.sample { background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:20px; display:grid; gap:12px; max-width:460px; }
+  form.sample label { font-size:12px; font-weight:600; color:var(--dim); }
+  form.sample input, form.sample textarea, form.sample select {
+    width:100%; padding:10px 12px; border:1px solid var(--line); border-radius:8px; font:inherit; font-size:14px;
+  }
+  .btn { display:inline-flex; align-items:center; gap:7px; padding:10px 16px; border-radius:8px; border:1px solid var(--line); background:var(--panel); font:inherit; font-size:14px; font-weight:600; cursor:pointer; }
+  .btn.primary { background:var(--accent); color:#fff; border-color:var(--accent); }
+
+  /* sticky bottom action bar */
+  .actionbar {
+    position: sticky; bottom:0; z-index:20;
+    display:flex; align-items:center; gap:14px; padding:12px 28px;
+    background:#16181d; color:#fff;
+  }
+  .actionbar .label { font-family:var(--mono); font-size:13px; }
+  .actionbar .spacer { flex:1; }
+  .actionbar .ghost { color:#c9ccd3; text-decoration:underline; cursor:pointer; font-size:13px; }
+  .actionbar .go { padding:8px 16px; background:var(--blue); border-radius:8px; font-weight:600; font-size:13px; cursor:pointer; }
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="brand">Pin<b>point</b> · Test Plan</div>
+  <div class="meta"><span class="pill">v0.1.0</span> &nbsp; scroll to verify sticky ↓</div>
+</header>
+
+<main class="wrap">
+  <h1>Pinpoint — manual test plan</h1>
+  <p class="lede">
+    This page is both the checklist <em>and</em> the test target. Run
+    <code>/pinpoint test-plan.html</code>, then hover &amp; click any row, heading, button,
+    or form field below to leave element-anchored feedback. It exercises tables, lists, code,
+    a form, buttons, and sticky bars — a good spread of element types.
+  </p>
+
+  <h2><span class="n">00</span> &nbsp;How to run</h2>
+  <pre><span class="c"># in a Claude Code session</span>
+/pinpoint test-plan.html
+
+<span class="c"># or from a terminal</span>
+pinpoint annotate test-plan.html        <span class="c"># opens browser, blocks until you finalize</span>
+PINPOINT_NO_OPEN=1 pinpoint annotate test-plan.html   <span class="c"># headless (for scripted tests)</span></pre>
+
+  <h2><span class="n">01</span> &nbsp;Setup &amp; install</h2>
+  <div class="card">
+    <table>
+      <thead><tr><th>#</th><th>Check</th><th>Expected</th><th>Status</th></tr></thead>
+      <tbody>
+        <tr><td class="id">1.1</td><td><code>bun install</code> then <code>bun run install:local</code></td><td>shim at <code>~/.local/bin/pinpoint</code> + <code>~/.claude/commands/pinpoint.md</code></td><td><span class="status pass">✓ pass</span></td></tr>
+        <tr><td class="id">1.2</td><td><code>which pinpoint</code> &amp; <code>pinpoint --version</code></td><td>resolves; prints <code>0.1.0</code></td><td><span class="status pass">✓ pass</span></td></tr>
+        <tr><td class="id">1.3</td><td><code>/pinpoint</code> appears in the Claude Code skills list</td><td>listed as a slash command</td><td><span class="status pass">✓ pass</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2><span class="n">02</span> &nbsp;CLI &amp; server (automated)</h2>
+  <div class="card">
+    <table>
+      <thead><tr><th>#</th><th>Check</th><th>Expected</th><th>Status</th></tr></thead>
+      <tbody>
+        <tr><td class="id">2.1</td><td>App route <code>/__pinpoint/</code> serves the annotator with injected <code>window.__PINPOINT__</code></td><td>config has real <code>filePath</code> + <code>targetUrl</code></td><td><span class="status auto">auto ✓</span></td></tr>
+        <tr><td class="id">2.2</td><td>Static serving of the file's folder (html / css / js / svg)</td><td><code>200</code> with correct content-types</td><td><span class="status auto">auto ✓</span></td></tr>
+        <tr><td class="id">2.3</td><td>Missing asset / path traversal</td><td><code>404</code> / <code>403</code> (no leak)</td><td><span class="status auto">auto ✓</span></td></tr>
+        <tr><td class="id">2.4</td><td>Compiled binary <code>dist/pinpoint</code> serves embedded UI</td><td>works with no Bun runtime</td><td><span class="status auto">auto ✓</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2><span class="n">03</span> &nbsp;Browser annotator (do these now)</h2>
+  <div class="card">
+    <ul class="checks" style="padding:6px 16px;">
+      <li><span class="box"></span> Hover any element → floating label shows its <code>&lt;tag&gt;</code> + CSS selector.</li>
+      <li><span class="box"></span> Click an element → a numbered badge glues to it; a card appears in the sidebar.</li>
+      <li><span class="box"></span> Type a comment; it persists. Resolve (✓) dims it; Delete (✕) confirms first.</li>
+      <li><span class="box"></span> Click <b>Locate</b> (⤓) on a card → the page scrolls to that element.</li>
+      <li><span class="box"></span> Add a <b>Page-wide note</b> at the top of the sidebar.</li>
+      <li><span class="box"></span> Toggle <b>Browse</b> → you can click links/buttons without annotating; <b>Inspect</b> re-arms it.</li>
+      <li><span class="box"></span> Toggle the theme (🌙 / ☀️) → chrome flips light/dark; badges stay visible on the page.</li>
+    </ul>
+  </div>
+
+  <h2><span class="n">04</span> &nbsp;Finalize &amp; lifecycle</h2>
+  <div class="card">
+    <table>
+      <thead><tr><th>#</th><th>Action</th><th>Expected stdout (what Claude receives)</th><th>Status</th></tr></thead>
+      <tbody>
+        <tr><td class="id">4.1</td><td><b>Send Feedback</b></td><td>markdown brief: file path, page-wide note, each open annotation w/ selector + outerHTML + comment</td><td><span class="status todo">try it</span></td></tr>
+        <tr><td class="id">4.2</td><td><b>Approve</b></td><td><code>✅ Approved — no changes requested.</code></td><td><span class="status todo">try it</span></td></tr>
+        <tr><td class="id">4.3</td><td><b>Close tab</b></td><td><code>Review window closed — no feedback submitted.</code> (after ~4s)</td><td><span class="status pass">✓ pass</span></td></tr>
+        <tr><td class="id">4.4</td><td><b>Reload tab</b></td><td>annotations restored; review does <em>not</em> abort</td><td><span class="status todo">try it</span></td></tr>
+        <tr><td class="id">4.5</td><td><b>Ctrl+C</b> in terminal</td><td>aborts, exit 130, session file cleaned</td><td><span class="status auto">auto ✓</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2><span class="n">05</span> &nbsp;Render fidelity (visual)</h2>
+  <div class="grid">
+    <div class="tile"><h3>Sticky header</h3><p>Scroll up/down — the top bar stays pinned, like a real browser.</p></div>
+    <div class="tile"><h3>Sticky footer</h3><p>The dark action bar at the bottom stays pinned while you scroll.</p></div>
+    <div class="tile"><h3>Real CSS/JS</h3><p>This page's styling renders exactly; external assets resolve via the server.</p></div>
+  </div>
+
+  <h2><span class="n">06</span> &nbsp;Annotate-a-form (element variety)</h2>
+  <form class="sample" onsubmit="return false">
+    <div><label for="nm">Name</label><input id="nm" type="text" placeholder="Ada Lovelace" /></div>
+    <div><label for="em">Email</label><input id="em" type="email" placeholder="ada@example.com" /></div>
+    <div><label for="rl">Role</label>
+      <select id="rl"><option>Designer</option><option>Engineer</option><option>PM</option></select>
+    </div>
+    <div><label for="ms">Notes</label><textarea id="ms" rows="3" placeholder="Try annotating this textarea…"></textarea></div>
+    <div style="display:flex; gap:10px;">
+      <button class="btn" type="reset">Reset</button>
+      <button class="btn primary" type="submit">Submit</button>
+    </div>
+  </form>
+
+  <h2><span class="n">07</span> &nbsp;Sign-off</h2>
+  <div class="card">
+    <ul class="checks" style="padding:6px 16px;">
+      <li><span class="box"></span> Send Feedback brief came back into the Claude Code session and Claude could act on it.</li>
+      <li><span class="box"></span> Approve / Close / Ctrl+C all resumed the session with the right result.</li>
+      <li><span class="box"></span> No annotator CSS leaked into this page; no console errors.</li>
+    </ul>
+  </div>
+</main>
+
+<div class="actionbar">
+  <span class="label">Pinpoint test target</span>
+  <div class="spacer"></div>
+  <span class="ghost">Save draft</span>
+  <span class="go">Publish</span>
+</div>
+
+</body>
+</html>

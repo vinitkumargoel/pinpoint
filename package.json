@@ -1,0 +1,27 @@
+{
+  "name": "pinpoint",
+  "version": "0.1.0",
+  "description": "Visual HTML mockup annotator for Claude Code — review a page in the browser and hand a structured brief back to the agent.",
+  "type": "module",
+  "license": "MIT",
+  "bin": {
+    "pinpoint": "src/index.ts"
+  },
+  "files": [
+    "src",
+    "README.md"
+  ],
+  "scripts": {
+    "dev": "bun run src/index.ts",
+    "compile": "bun build --compile --minify src/index.ts --outfile dist/pinpoint",
+    "install:local": "bash scripts/install.sh",
+    "typecheck": "bunx tsc --noEmit"
+  },
+  "engines": {
+    "bun": ">=1.1.0"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "typescript": "^5"
+  }
+}

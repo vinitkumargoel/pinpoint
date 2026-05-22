@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Northwind — fixture</title>
+  <!-- EXTERNAL assets: these only resolve because the server serves the folder. -->
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="site-header">
+    <img class="logo" src="logo.svg" alt="Northwind" width="120" height="24" />
+    <nav><a href="#product">Product</a><a href="#pricing">Pricing</a><a href="#docs">Docs</a></nav>
+    <a class="nav-cta" href="#">Sign in</a>
+  </header>
+
+  <section class="hero">
+    <h1 class="hero-title">Ship your ideas before the coffee gets cold.</h1>
+    <p class="hero-sub">A fixture page for the Pinpoint annotator. Its CSS, image, and JS load from
+      separate files — proof the local server renders real pages, not just self-contained HTML.</p>
+    <a class="cta" href="#">Start free &rarr;</a>
+  </section>
+
+  <section class="features" id="product">
+    <div class="feature"><h3>Fast</h3><p>Built for speed from the first byte to the last paint.</p></div>
+    <div class="feature"><h3>Flexible</h3><p>Bend the layout to whatever your product needs.</p></div>
+    <div class="feature"><h3>Friendly</h3><p>An interface your whole team actually enjoys using.</p></div>
+  </section>
+
+  <section class="signup" id="pricing">
+    <h2>Get early access</h2>
+    <form onsubmit="return false">
+      <input type="text" placeholder="Full name" />
+      <input type="email" placeholder="Work email" />
+      <button type="submit">Request invite</button>
+    </form>
+    <p class="js-proof" id="js-proof">Waiting for JavaScript…</p>
+  </section>
+
+  <footer id="docs">&copy; 2026 Northwind, Inc. — fixture content for annotation.</footer>
+
+  <div class="action-bar">
+    <span class="label">Ready to publish?</span>
+    <div class="spacer"></div>
+    <span class="ghost">Save draft</span>
+    <span class="go">Publish</span>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

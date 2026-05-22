@@ -1,0 +1,1006 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Pinpoint — HTML Annotator</title>
+<style>
+  /* ============================================================
+     APP CHROME + THEME TOKENS
+     ============================================================ */
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    display: grid;
+    grid-template-rows: 1fr;
+    overflow: hidden;
+    --radius: 3px;
+    --ctrl-h: 32px;    /* uniform height for every button & segmented control */
+    --fs-ui: 12.5px;   /* uniform UI text size */
+  }
+  /* Theme tokens — the only thing the toggle swaps. */
+  body[data-theme="light"] {
+    --bg:#f4f4f5; --panel:#ffffff; --text:#18181b; --dim:#71717a; --faint:#a1a1aa;
+    --border:#e4e4e7; --accent:#18181b; --accent-soft:#f4f4f5; --accent-ink:#ffffff;
+  }
+  body[data-theme="dark"] {
+    --bg:#0e0e10; --panel:#161618; --text:#ededee; --dim:#9a9aa0; --faint:#65656b;
+    --border:#2a2a2d; --accent:#ededee; --accent-soft:rgba(237,237,238,0.08); --accent-ink:#161618;
+  }
+
+  #shells { position: relative; overflow: hidden; }
+  .shell { position: absolute; inset: 0; }
+  .shell[hidden] { display: none !important; }
+
+  /* ============================================================
+     SHARED COMPONENTS (driven by theme tokens)
+     ============================================================ */
+  .topbar {
+    display: flex; align-items: center; gap: 12px;
+    height: 50px; padding: 0 16px;
+    background: var(--panel); border-bottom: 1px solid var(--border);
+    user-select: none;
+  }
+  .brand { font-weight: 600; font-size: 15.5px; letter-spacing: -0.01em; }
+  .brand b { color: var(--accent); }
+  .topbar .spacer { flex: 1; }
+  .counts { font-size: 12px; color: var(--dim); white-space: nowrap; }
+  .counts b { color: var(--accent); font-weight: 600; }
+
+  /* Minimal-Mono family signature: mono on the key chrome, in every variant */
+  .brand, .counts, .annot-num, .panel-title { font-family: ui-monospace, "SF Mono", Menlo, monospace; }
+
+  .seg { display: inline-flex; height: var(--ctrl-h); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+  .seg button {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: transparent; border: 0; color: var(--dim);
+    padding: 0 13px; font: inherit; font-size: var(--fs-ui); cursor: pointer;
+  }
+  .seg button + button { border-left: 1px solid var(--border); }
+  .seg button.on { background: var(--accent); color: var(--accent-ink); }
+  .seg button:hover:not(.on) { background: var(--bg); color: var(--text); }
+
+  .canvas { display: flex; justify-content: center; padding: 18px; overflow: hidden; }
+  .frame-wrap {
+    width: 100%; max-width: 1060px; height: 100%;
+    background: #fff; border: 1px solid var(--border); border-radius: var(--radius);
+    box-shadow: 0 8px 34px rgba(0,0,0,0.12); overflow: hidden;
+  }
+  iframe { display: block; width: 100%; height: 100%; border: 0; background: #fff; }
+
+  .panel { background: var(--panel); display: flex; flex-direction: column; min-height: 0; }
+  .panel-head { padding: 13px 14px; border-bottom: 1px solid var(--border); }
+  .panel-title { font-weight: 600; font-size: 14px; margin-bottom: 9px; }
+  .global-wrap label {
+    display: block; font-size: 10px; letter-spacing: 0.09em;
+    text-transform: uppercase; color: var(--faint); margin-bottom: 5px;
+  }
+  .global-wrap textarea {
+    width: 100%; min-height: 44px; resize: vertical;
+    border: 1px solid var(--border); border-radius: var(--radius); padding: 8px 10px;
+    font: inherit; font-size: 12.5px; color: var(--text);
+    background: var(--bg); outline: none; line-height: 1.45;
+  }
+  .global-wrap textarea:focus { border-color: var(--accent); }
+
+  .annot-list { flex: 1; overflow: auto; padding: 10px; }
+  .annot-list:empty::before {
+    content: 'Switch to Inspect, hover the preview, then click any element to leave a note.';
+    display: block; padding: 24px 16px; color: var(--faint);
+    font-size: 12.5px; text-align: center; line-height: 1.55;
+  }
+  .annot {
+    background: var(--bg); border: 1px solid var(--border);
+    border-left: 3px solid var(--accent); border-radius: var(--radius);
+    padding: 9px 11px; margin-bottom: 8px; cursor: pointer;
+    transition: box-shadow .12s, background .12s;
+  }
+  .annot:hover { background: var(--accent-soft); }
+  .annot.selected { box-shadow: 0 0 0 2px var(--accent); }
+  .annot.resolved { opacity: 0.6; border-left-color: #22c55e; }
+  .annot-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+  .annot-num { font-size: 11px; font-weight: 600; color: var(--accent); }
+  .annot.resolved .annot-num { color: #16a34a; }
+  .annot-actions { display: flex; gap: 2px; }
+  .annot-actions button {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 24px; height: 24px; padding: 0;
+    background: transparent; border: 0; color: var(--faint);
+    cursor: pointer; font-size: 12px; border-radius: 4px;
+  }
+  .annot-actions button:hover { color: var(--text); background: var(--bg); }
+  .annot-actions button.danger:hover { color: #dc2626; }
+  .annot-selector {
+    font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 11px;
+    color: var(--accent); background: var(--accent-soft);
+    padding: 3px 6px; border-radius: 5px; margin-bottom: 6px; word-break: break-all;
+  }
+  .annot-preview {
+    font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 10.5px;
+    color: var(--dim); background: var(--bg);
+    border: 1px solid var(--border); border-radius: 5px;
+    padding: 3px 6px; margin-bottom: 6px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .annot textarea {
+    width: 100%; min-height: 52px; resize: vertical;
+    border: 1px solid var(--border); border-radius: var(--radius); padding: 7px;
+    font: inherit; font-size: 12.5px; color: var(--text);
+    background: var(--panel); outline: none; line-height: 1.45;
+  }
+  .annot textarea:focus { border-color: var(--accent); }
+
+  .panel-foot {
+    display: flex; align-items: center; gap: 6px;
+    padding: 10px; border-top: 1px solid var(--border);
+  }
+  .panel-foot .spacer { flex: 1; }
+
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+    height: var(--ctrl-h); padding: 0 14px;
+    border: 1px solid var(--border); background: var(--panel); color: var(--text);
+    border-radius: var(--radius); font: inherit; font-size: var(--fs-ui);
+    white-space: nowrap; cursor: pointer;
+    transition: border-color .12s, background .12s, color .12s, filter .12s;
+  }
+  .btn:hover { border-color: var(--accent); }
+  .btn:active { transform: translateY(0.5px); }
+  .btn.ghost { border-color: transparent; color: var(--dim); padding: 0 10px; }
+  .btn.ghost:hover { color: var(--text); background: var(--bg); }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); font-weight: 600; }
+  .btn.primary:hover { filter: brightness(1.08); }
+  /* square, icon-only button — same height as text buttons */
+  .btn.theme-toggle { width: var(--ctrl-h); padding: 0; font-size: 14px; }
+
+  /* ============================================================
+     SHELL LAYOUT — Minimal Mono: top toolbar + canvas + right
+     sidebar. Colors come from body[data-theme]; --radius/--sidebar
+     are theme-independent.
+     ============================================================ */
+  .shell {
+    display: grid;
+    grid-template-rows: 50px 1fr;
+    grid-template-columns: 1fr var(--sidebar, 380px);
+    grid-template-areas: "top top" "canvas panel";
+    background: var(--bg); color: var(--text);
+  }
+  .topbar { grid-area: top; }
+  .canvas { grid-area: canvas; }
+  .panel  { grid-area: panel; border-left: 1px solid var(--border); }
+
+  /* ============================================================
+     FLOATING HOVER LABEL (shared, positioned over active iframe)
+     ============================================================ */
+  .hover-label {
+    position: fixed; z-index: 9999; display: none;
+    background: #0f172a; color: #fff;
+    font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 11px;
+    padding: 4px 8px; border-radius: 6px;
+    box-shadow: 0 6px 18px rgba(0,0,0,0.32);
+    max-width: 460px; white-space: nowrap; overflow: hidden;
+    text-overflow: ellipsis; pointer-events: none;
+  }
+  .hover-label .t { color: #818cf8; font-weight: 700; }
+  .hover-label .s { opacity: 0.65; }
+
+  /* ============================================================
+     MODAL (finalize: brief / approve)
+     ============================================================ */
+  .modal {
+    position: fixed; inset: 0; z-index: 10000;
+    background: rgba(15,23,42,0.6);
+    display: none; align-items: center; justify-content: center; padding: 32px;
+  }
+  .modal.show { display: flex; }
+  .modal-card {
+    background: var(--panel); color: var(--text); width: 100%; max-width: 720px; max-height: 82vh;
+    border-radius: 16px; overflow: hidden;
+    display: grid; grid-template-rows: auto 1fr auto;
+    box-shadow: 0 30px 80px rgba(0,0,0,0.42);
+  }
+  .modal-head { display: flex; justify-content: space-between; align-items: center; padding: 15px 20px; border-bottom: 1px solid var(--border); }
+  .modal-head h3 { margin: 0; font-size: 16px; }
+  .modal-head .x {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 28px; height: 28px; padding: 0; margin: -4px -6px -4px 0;
+    cursor: pointer; color: var(--dim); font-size: 18px; line-height: 1;
+    background: transparent; border: 0; border-radius: var(--radius);
+  }
+  .modal-head .x:hover { color: var(--text); background: var(--bg); }
+  .modal-body { overflow: auto; padding: 18px 20px; }
+  .modal-body pre {
+    margin: 0; font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    font-size: 12px; line-height: 1.55; white-space: pre-wrap; word-break: break-word;
+    background: var(--bg); border: 1px solid var(--border); border-radius: 10px; padding: 16px;
+  }
+  .approve-msg { text-align: center; padding: 26px 16px; font-size: 16px; color: #16a34a; line-height: 1.6; }
+  .approve-msg small { display: block; margin-top: 8px; color: var(--dim); font-size: 13px; }
+  .modal-foot { display: flex; justify-content: flex-end; gap: 8px; padding: 13px 20px; border-top: 1px solid var(--border); }
+  /* modal buttons inherit the unified .btn system; only a touch more side padding */
+  .modal-foot .btn { padding: 0 16px; }
+  .modal-foot .btn:hover { border-color: var(--accent); }
+  .modal-foot .btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); font-weight: 600; }
+
+  /* confirm dialog */
+  .confirm-card { max-width: 420px; }
+  .confirm-card .modal-body p { margin: 0; color: var(--text); font-size: 13.5px; line-height: 1.55; }
+  .btn.danger-btn, .modal-foot .btn.danger-btn { background: #dc2626; border-color: #dc2626; color: #fff; }
+  .btn.danger-btn:hover, .modal-foot .btn.danger-btn:hover { filter: brightness(1.07); border-color: #dc2626; }
+
+  /* stale annotation (selector no longer matches the rendered page) */
+  .annot.missing { border-left-color: #f59e0b; }
+  .annot-warn { color: #d97706; font-size: 11px; margin: -2px 0 6px; }
+  .annot-actions button[disabled] { opacity: 0.35; cursor: not-allowed; }
+
+  /* keyboard focus visibility */
+  button:focus-visible, textarea:focus-visible, [tabindex]:focus-visible {
+    outline: 2px solid var(--accent); outline-offset: 2px;
+  }
+
+  /* toast — inverted pill, themed */
+  .toast {
+    position: fixed; left: 50%; bottom: 24px; z-index: 10001;
+    transform: translateX(-50%) translateY(8px);
+    background: var(--text); color: var(--bg);
+    padding: 9px 16px; border-radius: 9px; font-size: 13px; font-weight: 500;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.32);
+    opacity: 0; pointer-events: none; max-width: 80vw; text-align: center;
+    transition: opacity .18s ease, transform .18s ease;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  /* thin scrollbars */
+  .annot-list::-webkit-scrollbar, .modal-body::-webkit-scrollbar { width: 9px; }
+  .annot-list::-webkit-scrollbar-thumb, .modal-body::-webkit-scrollbar-thumb { background: rgba(120,120,120,0.35); border-radius: 9px; }
+</style>
+</head>
+<body data-theme="light">
+
+<div id="shells"></div>
+
+<div class="hover-label" id="hover-label"></div>
+
+<div class="modal" id="modal">
+  <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+    <div class="modal-head">
+      <h3 id="modal-title">Feedback brief</h3>
+      <button type="button" class="x" id="modal-close" aria-label="Close">✕</button>
+    </div>
+    <div class="modal-body" id="modal-body"></div>
+    <div class="modal-foot">
+      <button type="button" class="btn" id="modal-dismiss">Close</button>
+      <button type="button" class="btn primary" id="modal-copy">Copy to clipboard</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="confirm-modal">
+  <div class="modal-card confirm-card" role="alertdialog" aria-modal="true" aria-labelledby="confirm-title" aria-describedby="confirm-msg">
+    <div class="modal-head">
+      <h3 id="confirm-title">Confirm</h3>
+    </div>
+    <div class="modal-body"><p id="confirm-msg"></p></div>
+    <div class="modal-foot">
+      <button type="button" class="btn" id="confirm-cancel">Cancel</button>
+      <button type="button" class="btn primary" id="confirm-ok">Confirm</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+/* =========================================================
+   Per-direction config (iframe badge accent + tint)
+   ========================================================= */
+/* In-iframe badge styling — fixed (independent of the app theme) so badges
+   stay visible on the user's mockup, which is usually a light page. */
+const DIRS = {
+  a: { accent: '#18181b', tint: 'rgba(24,24,27,0.06)', badgeText: '#fff', badgeRadius: '3px' },
+};
+
+/* =========================================================
+   Demo content rendered into every iframe.
+   Includes a sticky header AND a sticky bottom action bar
+   to prove they behave like a normal browser page.
+   ========================================================= */
+const DEMO_HTML = `<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><style>
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; color: #1f2933; background: #fff; line-height: 1.5; }
+  .site-header { position: sticky; top: 0; z-index: 50; display: flex; align-items: center; gap: 24px; padding: 14px 32px; background: rgba(255,255,255,0.92); backdrop-filter: blur(8px); border-bottom: 1px solid #eceff3; }
+  .site-header .logo { font-weight: 800; font-size: 18px; letter-spacing: -0.02em; }
+  .site-header nav { display: flex; gap: 22px; margin-left: auto; font-size: 14px; color: #52606d; }
+  .site-header .nav-cta { padding: 8px 16px; background: #1f2933; color: #fff; border-radius: 8px; font-weight: 600; }
+  .hero { padding: 76px 32px 64px; background: linear-gradient(180deg, #f6f8fb, #fff); }
+  .hero h1 { font-size: 46px; margin: 0 0 14px; letter-spacing: -0.025em; max-width: 660px; }
+  .hero p { font-size: 19px; color: #52606d; max-width: 560px; margin: 0 0 28px; }
+  .hero .cta { display: inline-block; padding: 13px 26px; background: #2563eb; color: #fff; border-radius: 10px; font-weight: 600; text-decoration: none; }
+  .features { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; padding: 56px 32px; }
+  .feature { padding: 24px; border: 1px solid #eceff3; border-radius: 12px; }
+  .feature h3 { margin: 0 0 8px; font-size: 17px; }
+  .feature p { margin: 0; color: #52606d; font-size: 14px; }
+  .signup { padding: 56px 32px; background: #f6f8fb; }
+  .signup h2 { font-size: 28px; margin: 0 0 18px; }
+  .signup form { display: grid; gap: 12px; max-width: 420px; }
+  .signup input { padding: 12px 14px; border: 1px solid #d2d9e0; border-radius: 9px; font-size: 15px; }
+  .signup button { padding: 12px; background: #1f2933; color: #fff; border: 0; border-radius: 9px; font-weight: 600; font-size: 15px; cursor: pointer; }
+  footer { padding: 44px 32px; color: #7b8794; font-size: 13px; }
+  .action-bar { position: sticky; bottom: 0; z-index: 50; display: flex; align-items: center; gap: 16px; padding: 14px 32px; background: #1f2933; color: #fff; }
+  .action-bar .label { font-weight: 600; }
+  .action-bar .spacer { flex: 1; }
+  .action-bar .ghost { color: #cbd2d9; text-decoration: underline; cursor: pointer; }
+  .action-bar .go { padding: 9px 18px; background: #2563eb; color: #fff; border-radius: 8px; font-weight: 600; cursor: pointer; }
+</style></head><body>
+  <header class="site-header">
+    <div class="logo">Northwind</div>
+    <nav><a>Product</a><a>Pricing</a><a>Docs</a></nav>
+    <a class="nav-cta" href="#">Sign in</a>
+  </header>
+  <section class="hero">
+    <h1 class="hero-title">Ship your ideas before the coffee gets cold.</h1>
+    <p class="hero-sub">A sample mockup for the Pinpoint annotator. Hover any element and click to leave element-anchored feedback. Scroll to see the sticky header and action bar stay put.</p>
+    <a class="cta" href="#">Start free &rarr;</a>
+  </section>
+  <section class="features">
+    <div class="feature"><h3>Fast</h3><p>Built for speed from the first byte to the last paint.</p></div>
+    <div class="feature"><h3>Flexible</h3><p>Bend the layout to whatever your product needs.</p></div>
+    <div class="feature"><h3>Friendly</h3><p>An interface your whole team actually enjoys using.</p></div>
+  </section>
+  <section class="signup">
+    <h2>Get early access</h2>
+    <form onsubmit="return false">
+      <input type="text" placeholder="Full name" />
+      <input type="email" placeholder="Work email" />
+      <button type="submit">Request invite</button>
+    </form>
+  </section>
+  <footer>&copy; 2026 Northwind, Inc. &mdash; sample content for annotation.</footer>
+  <div class="action-bar">
+    <span class="label">Ready to publish?</span>
+    <div class="spacer"></div>
+    <span class="ghost">Save draft</span>
+    <span class="go">Publish</span>
+  </div>
+</body></html>`;
+
+/* Toolbar + canvas + sidebar markup for the shell. */
+const CHROME = `
+  <header class="topbar">
+    <div class="brand">Pin<b>point</b></div>
+    <div class="seg">
+      <button data-role="mode-inspect" class="on">&#8982; Inspect</button>
+      <button data-role="mode-browse">&#8599; Browse</button>
+    </div>
+    <div class="spacer"></div>
+    <div class="counts"><b data-role="count-open">0</b> open &middot; <span data-role="count-resolved">0</span> resolved</div>
+    <button type="button" class="btn ghost theme-toggle" data-role="theme-toggle" title="Toggle light / dark theme" aria-label="Toggle light or dark theme"><span data-role="theme-icon">&#127769;</span></button>
+  </header>
+  <div class="canvas" data-role="canvas">
+    <div class="frame-wrap">
+      <iframe data-role="frame" sandbox="allow-same-origin allow-scripts allow-forms"></iframe>
+    </div>
+  </div>
+  <aside class="panel" data-role="panel">
+    <div class="panel-head">
+      <div class="panel-title">Annotations</div>
+      <div class="global-wrap">
+        <label>Page-wide note</label>
+        <textarea data-role="global-comment" placeholder="Overall feedback on the whole page&hellip;"></textarea>
+      </div>
+    </div>
+    <div class="annot-list" data-role="annot-list"></div>
+    <div class="panel-foot">
+      <button class="btn ghost" data-role="clear-all">Clear</button>
+      <button class="btn ghost" data-role="toggle-resolved">Hide resolved</button>
+      <div class="spacer"></div>
+      <button class="btn" data-role="finalize-approve">Approve</button>
+      <button class="btn primary" data-role="finalize-send">Send Feedback</button>
+    </div>
+  </aside>`;
+
+/* =========================================================
+   State (single source of truth)
+   - annotations + comments: sessionStorage (cleared when the tab/session ends)
+   - theme: localStorage (a UI preference that persists across sessions)
+   ========================================================= */
+const SS_KEY = 'pinpoint:mockup:comments';   // sessionStorage — annotations & comments
+const THEME_KEY = 'pinpoint:theme';          // localStorage — theme preference only
+const LEGACY_LS_KEY = 'pinpoint:mockup:v1';  // old combined localStorage entry (migrated away)
+const state = {
+  html: DEMO_HTML,
+  globalComment: '',
+  annotations: [],
+  selectedId: null,
+  mode: 'inspect',
+  hideResolved: false,
+  theme: 'light',
+};
+const shells = {};      // dir -> { el, iframe }
+let active = null;      // active shell element
+
+const hoverLabel = document.getElementById('hover-label');
+
+/* =========================================================
+   Persistence
+   ========================================================= */
+function persist() {
+  // comments & annotations -> sessionStorage only
+  try {
+    sessionStorage.setItem(SS_KEY, JSON.stringify({
+      globalComment: state.globalComment,
+      annotations: state.annotations,
+    }));
+  } catch (e) {}
+  // theme preference -> localStorage
+  try { localStorage.setItem(THEME_KEY, state.theme); } catch (e) {}
+}
+function loadPersisted() {
+  // comments & annotations from sessionStorage
+  try {
+    const raw = sessionStorage.getItem(SS_KEY);
+    if (raw) {
+      const d = JSON.parse(raw);
+      state.globalComment = d.globalComment || '';
+      state.annotations = Array.isArray(d.annotations) ? d.annotations : [];
+    }
+  } catch (e) {}
+  // theme from localStorage
+  try {
+    const t = localStorage.getItem(THEME_KEY);
+    if (t === 'light' || t === 'dark') state.theme = t;
+  } catch (e) {}
+  // one-time migration: comments must NOT remain in localStorage.
+  // Carry any old work forward into this session, salvage the theme, then purge it.
+  try {
+    const legacy = localStorage.getItem(LEGACY_LS_KEY);
+    if (legacy) {
+      const d = JSON.parse(legacy);
+      if (!sessionStorage.getItem(SS_KEY)) {
+        state.globalComment = d.globalComment || state.globalComment;
+        if (Array.isArray(d.annotations)) state.annotations = d.annotations;
+      }
+      if (!localStorage.getItem(THEME_KEY) && (d.theme === 'light' || d.theme === 'dark')) {
+        state.theme = d.theme;
+      }
+      localStorage.removeItem(LEGACY_LS_KEY);
+      persist(); // write the carried-forward work into sessionStorage
+    }
+  } catch (e) {}
+}
+
+/* =========================================================
+   Small helpers
+   ========================================================= */
+const q = (role) => active && active.querySelector(`[data-role="${role}"]`);
+const activeDoc = () => active && shells[active.dataset.dir].iframe.contentDocument;
+function escapeHtml(s) {
+  return (s || '').replace(/[&<>"']/g, ch => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[ch]));
+}
+/* Does this annotation's selector still resolve in the rendered page?
+   Returns true while the doc is still loading (don't flag prematurely). */
+function elementExists(doc, selector) {
+  if (!doc) return true;
+  try { return !!doc.querySelector(selector); } catch (e) { return false; }
+}
+
+/* =========================================================
+   CSS selector generation (ported from annotator.html)
+   ========================================================= */
+function cssEscape(s) {
+  return (window.CSS && CSS.escape) ? CSS.escape(s) : s.replace(/([^\w-])/g, '\\$1');
+}
+function getSelector(el) {
+  const doc = el.ownerDocument;
+  if (el.id && doc.querySelectorAll('#' + cssEscape(el.id)).length === 1) {
+    return '#' + cssEscape(el.id);
+  }
+  const parts = [];
+  let cur = el;
+  while (cur && cur.nodeType === 1 && cur !== doc.body && cur !== doc.documentElement) {
+    let part = cur.tagName.toLowerCase();
+    if (cur.id && doc.querySelectorAll('#' + cssEscape(cur.id)).length === 1) {
+      parts.unshift('#' + cssEscape(cur.id));
+      break;
+    }
+    const classes = Array.from(cur.classList).filter(c => !c.startsWith('__pp-'));
+    if (classes.length) part += '.' + classes.slice(0, 2).map(cssEscape).join('.');
+    const parent = cur.parentNode;
+    if (parent && parent.children) {
+      const sameTag = Array.from(parent.children).filter(c => c.tagName === cur.tagName);
+      if (sameTag.length > 1) part += `:nth-of-type(${sameTag.indexOf(cur) + 1})`;
+    }
+    parts.unshift(part);
+    cur = cur.parentNode;
+  }
+  return parts.join(' > ');
+}
+function shortOuter(el, max = 200) {
+  const html = (el.outerHTML || '').replace(/\s+/g, ' ').trim();
+  return html.length > max ? html.slice(0, max) + '…' : html;
+}
+
+/* =========================================================
+   Build shells
+   ========================================================= */
+function buildShells() {
+  const root = document.getElementById('shells');
+  ['a'].forEach(dir => {
+    const shell = document.createElement('div');
+    shell.className = 'shell';
+    shell.dataset.dir = dir;
+    shell.hidden = true;
+    shell.innerHTML = CHROME;
+    root.appendChild(shell);
+
+    const iframe = shell.querySelector('[data-role="frame"]');
+    iframe.addEventListener('load', () => onFrameLoad(dir));
+    iframe.srcdoc = state.html;
+
+    shells[dir] = { el: shell, iframe };
+    wireShell(dir);
+  });
+}
+
+function wireShell(dir) {
+  const s = shells[dir].el;
+  s.querySelector('[data-role="mode-inspect"]').onclick = () => setMode('inspect');
+  s.querySelector('[data-role="mode-browse"]').onclick = () => setMode('browse');
+  s.querySelector('[data-role="global-comment"]').addEventListener('input', e => {
+    state.globalComment = e.target.value; persist();
+  });
+  s.querySelector('[data-role="clear-all"]').onclick = clearAll;
+  s.querySelector('[data-role="toggle-resolved"]').onclick = (e) => toggleHideResolved(e.target);
+  s.querySelector('[data-role="finalize-approve"]').onclick = onApprove;
+  s.querySelector('[data-role="finalize-send"]').onclick = onSend;
+  s.querySelector('[data-role="theme-toggle"]').onclick = toggleTheme;
+}
+
+/* =========================================================
+   Iframe load: inject overlay CSS + attach handlers
+   ========================================================= */
+function onFrameLoad(dir) {
+  const doc = shells[dir].iframe.contentDocument;
+  if (!doc) return;
+  injectOverlay(doc, dir);
+  attachHandlers(doc, dir);
+  doc.body.classList.toggle('__pp-inspect', state.mode === 'inspect');
+  reapply(doc);
+  if (active && active.dataset.dir === dir) render();
+}
+
+function injectOverlay(doc, dir) {
+  const c = DIRS[dir];
+  const pre = c.badgePre || '', suf = c.badgeSuf || '';
+  const old = doc.getElementById('__pp-styles');
+  if (old) old.remove();
+  const style = doc.createElement('style');
+  style.id = '__pp-styles';
+  style.textContent = `
+    .__pp-hover { outline: 2px solid ${c.accent} !important; outline-offset: -2px !important; cursor: crosshair !important; background-color: ${c.tint} !important; }
+    .__pp-tagged { outline: 2px dashed ${c.accent} !important; outline-offset: -2px !important; position: relative !important; }
+    .__pp-tagged::before {
+      content: "${pre}" attr(data-pp-num) "${suf}" !important;
+      position: absolute !important; top: -10px !important; left: -10px !important;
+      min-width: 20px !important; height: 20px !important; padding: 0 5px !important;
+      background: ${c.accent} !important; color: ${c.badgeText} !important;
+      font: 700 11px/20px ui-monospace, monospace !important;
+      border-radius: ${c.badgeRadius} !important;
+      display: flex !important; align-items: center !important; justify-content: center !important;
+      z-index: 99999 !important; box-shadow: 0 0 0 2px #fff, 0 2px 6px rgba(0,0,0,0.28) !important;
+      pointer-events: none !important;
+    }
+    .__pp-selected { outline: 3px solid ${c.accent} !important; outline-offset: -3px !important; }
+    body.__pp-inspect, body.__pp-inspect * { cursor: crosshair !important; }
+  `;
+  doc.head.appendChild(style);
+}
+
+function attachHandlers(doc, dir) {
+  let hovered = null;
+  doc.addEventListener('mouseover', (e) => {
+    if (state.mode !== 'inspect') return;
+    const t = e.target;
+    if (!t || t === doc.body || t === doc.documentElement) return;
+    if (hovered && hovered !== t) hovered.classList.remove('__pp-hover');
+    t.classList.add('__pp-hover');
+    hovered = t;
+    showHover(t, e, dir);
+  }, true);
+  doc.addEventListener('mouseout', (e) => {
+    if (state.mode !== 'inspect') return;
+    if (e.target === hovered) { e.target.classList.remove('__pp-hover'); hovered = null; hideHover(); }
+  }, true);
+  doc.addEventListener('mousemove', (e) => {
+    if (state.mode !== 'inspect' || !hovered) return;
+    posHover(e, dir);
+  }, true);
+  doc.addEventListener('click', (e) => {
+    if (state.mode !== 'inspect') return;
+    e.preventDefault(); e.stopPropagation();
+    const t = e.target;
+    if (!t || t === doc.body || t === doc.documentElement) return;
+    active = shells[dir].el;
+    addAnnotation(t);
+  }, true);
+  // pointer leaving the iframe content shouldn't leave a stuck label
+  doc.documentElement.addEventListener('mouseleave', hideHover);
+}
+
+/* =========================================================
+   Hover label
+   ========================================================= */
+function showHover(el, evt, dir) {
+  const sel = getSelector(el);
+  const tag = el.tagName.toLowerCase();
+  const classes = Array.from(el.classList).filter(c => !c.startsWith('__pp-'));
+  let html = `<span class="t">&lt;${tag}&gt;</span>`;
+  if (el.id) html += ` #${escapeHtml(el.id)}`;
+  if (classes.length) html += ` .${escapeHtml(classes.join('.'))}`;
+  html += ` <span class="s">${escapeHtml(sel)}</span>`;
+  hoverLabel.innerHTML = html;
+  hoverLabel.style.display = 'block';
+  posHover(evt, dir);
+}
+function posHover(evt, dir) {
+  const r = shells[dir].iframe.getBoundingClientRect();
+  const x = r.left + evt.clientX + 14;
+  const y = r.top + evt.clientY + 14;
+  hoverLabel.style.left = Math.min(x, window.innerWidth - 470) + 'px';
+  hoverLabel.style.top = Math.min(y, window.innerHeight - 34) + 'px';
+}
+function hideHover() {
+  hoverLabel.style.display = 'none';
+  // clear any lingering hover outline so it can't get "stuck"
+  const doc = activeDoc();
+  if (doc) doc.querySelectorAll('.__pp-hover').forEach(el => el.classList.remove('__pp-hover'));
+}
+
+/* =========================================================
+   Annotation CRUD
+   ========================================================= */
+function addAnnotation(el) {
+  const annot = {
+    id: 'a_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7),
+    selector: getSelector(el),
+    tag: el.tagName.toLowerCase(),
+    text: (el.textContent || '').trim().slice(0, 120),
+    outerHTML: shortOuter(el),
+    comment: '',
+    resolved: false,
+    createdAt: new Date().toISOString(),
+  };
+  state.annotations.push(annot);
+  state.selectedId = annot.id;
+  persist();
+  reapplyActive();
+  render();
+  setTimeout(() => {
+    const ta = active.querySelector(`.annot[data-id="${annot.id}"] textarea`);
+    if (ta) { ta.focus(); ta.scrollIntoView({ block: 'center', behavior: 'smooth' }); }
+  }, 60);
+}
+function deleteAnnot(id) {
+  state.annotations = state.annotations.filter(a => a.id !== id);
+  if (state.selectedId === id) state.selectedId = null;
+  persist(); reapplyActive(); render();
+}
+async function requestDeleteAnnot(id) {
+  const ok = await confirmDialog({
+    title: 'Delete annotation',
+    message: 'This annotation will be removed. This can’t be undone.',
+    confirmLabel: 'Delete',
+    danger: true,
+  });
+  if (ok) { deleteAnnot(id); toast('Annotation deleted'); }
+}
+function toggleResolve(id) {
+  const a = state.annotations.find(x => x.id === id);
+  if (a) { a.resolved = !a.resolved; persist(); reapplyActive(); render(); }
+}
+function updateComment(id, text) {
+  const a = state.annotations.find(x => x.id === id);
+  if (a) { a.comment = text; persist(); }
+}
+
+/* =========================================================
+   Badges inside the iframe
+   ========================================================= */
+function reapply(doc) {
+  if (!doc) return;
+  doc.querySelectorAll('.__pp-tagged, .__pp-selected').forEach(el => {
+    el.classList.remove('__pp-tagged', '__pp-selected');
+    el.removeAttribute('data-pp-num');
+  });
+  state.annotations.forEach((a, i) => {
+    if (state.hideResolved && a.resolved) return;
+    try {
+      const found = doc.querySelectorAll(a.selector);
+      if (found.length) {
+        const el = found[0];
+        el.classList.add('__pp-tagged');
+        el.setAttribute('data-pp-num', (i + 1).toString());
+        if (state.selectedId === a.id) el.classList.add('__pp-selected');
+      }
+    } catch (e) {}
+  });
+}
+function reapplyActive() { reapply(activeDoc()); }
+
+/* =========================================================
+   Sidebar render (into the active shell)
+   ========================================================= */
+function render() {
+  if (!active) return;
+  const list = q('annot-list');
+  list.innerHTML = '';
+
+  const gc = q('global-comment');
+  if (gc && gc.value !== state.globalComment) gc.value = state.globalComment;
+
+  const doc = activeDoc();
+  state.annotations
+    .map((a, i) => ({ a, n: i + 1 }))
+    .filter(({ a }) => !state.hideResolved || !a.resolved)
+    .forEach(({ a, n }) => {
+      const found = elementExists(doc, a.selector);
+      const el = document.createElement('div');
+      el.className = 'annot'
+        + (state.selectedId === a.id ? ' selected' : '')
+        + (a.resolved ? ' resolved' : '')
+        + (found ? '' : ' missing');
+      el.dataset.id = a.id;
+      el.innerHTML = `
+        <div class="annot-head">
+          <span class="annot-num">#${n}${a.resolved ? ' &middot; resolved' : ''}${found ? '' : ' &middot; missing'}</span>
+          <div class="annot-actions">
+            <button type="button" data-act="locate" title="Scroll to element" aria-label="Scroll to element"${found ? '' : ' disabled'}>&#8675;</button>
+            <button type="button" data-act="resolve" title="${a.resolved ? 'Reopen' : 'Resolve'}" aria-label="${a.resolved ? 'Reopen' : 'Resolve'}">${a.resolved ? '&#8634;' : '&#10003;'}</button>
+            <button type="button" data-act="del" class="danger" title="Delete" aria-label="Delete">&#10005;</button>
+          </div>
+        </div>
+        <div class="annot-selector">${escapeHtml(a.selector)}</div>
+        ${found ? '' : '<div class="annot-warn">⚠ This element isn’t on the page anymore.</div>'}
+        <div class="annot-preview" title="${escapeHtml(a.outerHTML)}">${escapeHtml(a.outerHTML)}</div>
+        <textarea placeholder="What needs to change here?">${escapeHtml(a.comment)}</textarea>`;
+
+      el.addEventListener('click', (e) => {
+        if (e.target.closest('textarea') || e.target.closest('button')) return;
+        state.selectedId = a.id;
+        reapplyActive(); render();
+        scrollToElement(a.selector);
+      });
+      el.querySelector('textarea').addEventListener('input', (e) => updateComment(a.id, e.target.value));
+      el.querySelector('[data-act="locate"]').addEventListener('click', (e) => { e.stopPropagation(); scrollToElement(a.selector); });
+      el.querySelector('[data-act="resolve"]').addEventListener('click', (e) => { e.stopPropagation(); toggleResolve(a.id); });
+      el.querySelector('[data-act="del"]').addEventListener('click', (e) => { e.stopPropagation(); requestDeleteAnnot(a.id); });
+      list.appendChild(el);
+    });
+
+  q('count-open').textContent = state.annotations.filter(a => !a.resolved).length;
+  q('count-resolved').textContent = state.annotations.filter(a => a.resolved).length;
+  q('mode-inspect').classList.toggle('on', state.mode === 'inspect');
+  q('mode-browse').classList.toggle('on', state.mode === 'browse');
+}
+
+function scrollToElement(selector) {
+  const doc = activeDoc();
+  if (!doc) return;
+  try {
+    const el = doc.querySelector(selector);
+    if (el) el.scrollIntoView({ block: 'center', behavior: 'smooth' });
+  } catch (e) {}
+}
+
+/* =========================================================
+   Mode + foot actions
+   ========================================================= */
+function setMode(m) {
+  state.mode = m;
+  const doc = activeDoc();
+  if (doc) doc.body.classList.toggle('__pp-inspect', m === 'inspect');
+  if (m === 'browse') hideHover();
+  render();
+}
+async function clearAll() {
+  if (!state.annotations.length) { toast('No annotations to clear'); return; }
+  const n = state.annotations.length;
+  const ok = await confirmDialog({
+    title: 'Clear all annotations',
+    message: `Delete all ${n} annotation${n === 1 ? '' : 's'}? This can’t be undone.`,
+    confirmLabel: 'Clear all',
+    danger: true,
+  });
+  if (!ok) return;
+  state.annotations = [];
+  state.selectedId = null;
+  persist(); reapplyActive(); render();
+  toast('Cleared all annotations');
+}
+function toggleHideResolved(btn) {
+  state.hideResolved = !state.hideResolved;
+  if (btn) btn.textContent = state.hideResolved ? 'Show resolved' : 'Hide resolved';
+  reapplyActive(); render();
+}
+
+/* =========================================================
+   Direction switch
+   ========================================================= */
+function switchTo(dir) {
+  Object.values(shells).forEach(s => { s.el.hidden = true; });
+  active = shells[dir].el;
+  active.hidden = false;
+  // keep the "Hide resolved" toggle label in sync for this shell
+  const tr = q('toggle-resolved');
+  if (tr) tr.textContent = state.hideResolved ? 'Show resolved' : 'Hide resolved';
+  const doc = activeDoc();
+  if (doc) { doc.body.classList.toggle('__pp-inspect', state.mode === 'inspect'); reapply(doc); }
+  render();
+}
+
+/* =========================================================
+   Finalize (stubbed — no server yet)
+   ========================================================= */
+function buildBrief() {
+  const open = state.annotations.filter(a => !a.resolved);
+  const L = [];
+  L.push('# UI Feedback');
+  L.push('');
+  L.push('**File:** `PLAN.html`  _(placeholder — the CLI will fill in the real path)_');
+  L.push('');
+  if (state.globalComment.trim()) {
+    L.push('## Page-wide note');
+    L.push('');
+    L.push(state.globalComment.trim());
+    L.push('');
+  }
+  L.push(`## ${open.length} element annotation${open.length === 1 ? '' : 's'}`);
+  L.push('');
+  open.forEach(a => {
+    const idx = state.annotations.indexOf(a) + 1;
+    L.push(`### #${idx} — \`${a.selector}\``);
+    L.push('');
+    L.push(`**Element:** \`<${a.tag}>\`${a.text ? ` — "${a.text}"` : ''}`);
+    L.push('');
+    L.push('```html');
+    L.push(a.outerHTML);
+    L.push('```');
+    L.push('');
+    L.push(`**Feedback:** ${a.comment || '_(no comment)_'}`);
+    L.push('');
+  });
+  const res = state.annotations.filter(a => a.resolved).length;
+  if (res) { L.push('---'); L.push(`_${res} resolved annotation(s) omitted._`); }
+  return L.join('\n');
+}
+
+const modal = document.getElementById('modal');
+function closeModal() { modal.classList.remove('show'); }
+function showModal(kind, text) {
+  hideHover();
+  const title = document.getElementById('modal-title');
+  const body = document.getElementById('modal-body');
+  const copyBtn = document.getElementById('modal-copy');
+  const dismissBtn = document.getElementById('modal-dismiss');
+  if (kind === 'approve') {
+    title.textContent = 'Approved';
+    body.innerHTML = '<div class="approve-msg">&#10003; Approved — no changes requested.<small>In the real loop this resumes Claude Code with no feedback.</small></div>';
+    copyBtn.style.display = 'none';
+  } else {
+    title.textContent = 'Feedback brief';
+    body.innerHTML = '<pre></pre>';
+    body.querySelector('pre').textContent = text;
+    copyBtn.style.display = '';
+    copyBtn.dataset.text = text;
+  }
+  modal.classList.add('show');
+  setTimeout(() => (copyBtn.style.display === 'none' ? dismissBtn : copyBtn).focus(), 30);
+}
+function onApprove() {
+  // TODO: POST {action:'approve'} to the local server so the blocking CLI resumes.
+  showModal('approve');
+}
+function onSend() {
+  // TODO: POST {action:'feedback', brief} to the local server so Claude Code resumes with the brief.
+  if (!state.annotations.some(a => !a.resolved) && !state.globalComment.trim()) {
+    toast('Nothing to send yet — add a note or annotate an element');
+    return;
+  }
+  showModal('send', buildBrief());
+}
+
+function selectPreText() {
+  const pre = document.querySelector('#modal-body pre');
+  if (!pre) return;
+  const range = document.createRange();
+  range.selectNodeContents(pre);
+  const sel = window.getSelection();
+  sel.removeAllRanges();
+  sel.addRange(range);
+}
+
+document.getElementById('modal-close').onclick = closeModal;
+document.getElementById('modal-dismiss').onclick = closeModal;
+modal.addEventListener('click', (e) => { if (e.target === modal) closeModal(); });
+document.getElementById('modal-copy').onclick = async (e) => {
+  const text = e.currentTarget.dataset.text || '';
+  try {
+    await navigator.clipboard.writeText(text);
+    toast('Brief copied to clipboard');
+  } catch (err) {
+    selectPreText();
+    toast('Copy blocked — text selected, press ⌘/Ctrl+C', 2800);
+  }
+};
+
+/* =========================================================
+   Toast + themed confirm dialog (replace native alert/confirm)
+   ========================================================= */
+let toastTimer = null;
+function toast(msg, ms = 1900) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), ms);
+}
+
+const confirmModal = document.getElementById('confirm-modal');
+let confirmResolver = null;
+function confirmDialog({ title = 'Confirm', message = '', confirmLabel = 'Confirm', danger = false } = {}) {
+  hideHover();
+  document.getElementById('confirm-title').textContent = title;
+  document.getElementById('confirm-msg').textContent = message;
+  const ok = document.getElementById('confirm-ok');
+  ok.textContent = confirmLabel;
+  ok.classList.toggle('danger-btn', danger);
+  confirmModal.classList.add('show');
+  setTimeout(() => ok.focus(), 30);
+  return new Promise(res => { confirmResolver = res; });
+}
+function closeConfirm(result) {
+  confirmModal.classList.remove('show');
+  if (confirmResolver) { confirmResolver(result); confirmResolver = null; }
+}
+document.getElementById('confirm-ok').onclick = () => closeConfirm(true);
+document.getElementById('confirm-cancel').onclick = () => closeConfirm(false);
+confirmModal.addEventListener('click', (e) => { if (e.target === confirmModal) closeConfirm(false); });
+
+document.addEventListener('keydown', (e) => {
+  if (e.key !== 'Escape') return;
+  if (confirmModal.classList.contains('show')) closeConfirm(false);
+  else if (modal.classList.contains('show')) closeModal();
+});
+
+/* =========================================================
+   Theme toggle (light <-> dark) — swaps body[data-theme] tokens
+   ========================================================= */
+function applyTheme() {
+  document.body.dataset.theme = state.theme;
+  document.querySelectorAll('[data-role="theme-icon"]').forEach(el => {
+    el.textContent = state.theme === 'dark' ? '☀️' : '🌙'; // sun / moon
+  });
+  document.querySelectorAll('[data-role="theme-toggle"]').forEach(b => {
+    b.title = state.theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme';
+  });
+}
+function toggleTheme() {
+  state.theme = state.theme === 'dark' ? 'light' : 'dark';
+  applyTheme();
+  persist();
+}
+
+/* =========================================================
+   Boot
+   ========================================================= */
+window.addEventListener('blur', hideHover);
+loadPersisted();
+buildShells();
+applyTheme();
+switchTo('a');
+</script>
+</body>
+</html>

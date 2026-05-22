@@ -1,0 +1,1014 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>HTML Annotator — Element Inspector</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=JetBrains+Mono:wght@400;500;600&family=Inter+Tight:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0f0f10;
+    --panel: #181819;
+    --panel-2: #1f1f21;
+    --border: #2a2a2c;
+    --border-hi: #3a3a3d;
+    --text: #ededee;
+    --text-dim: #8a8a8e;
+    --text-faint: #5a5a5e;
+    --accent: #ff7a2e;
+    --accent-hi: #ff8f4a;
+    --good: #6ad07c;
+    --bad: #f06a6a;
+    --mono: 'JetBrains Mono', ui-monospace, monospace;
+    --sans: 'Inter Tight', system-ui, sans-serif;
+    --serif: 'Fraunces', Georgia, serif;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 14px;
+    overflow: hidden;
+    display: grid;
+    grid-template-rows: 48px 1fr;
+  }
+
+  /* ===== Top bar ===== */
+  header {
+    display: flex; align-items: center; padding: 0 14px;
+    border-bottom: 1px solid var(--border);
+    background: var(--panel);
+    gap: 12px;
+    user-select: none;
+  }
+  .brand {
+    font-family: var(--serif);
+    font-weight: 500;
+    font-size: 17px;
+    letter-spacing: -0.01em;
+  }
+  .brand em { color: var(--accent); font-style: italic; font-weight: 600; }
+  .divider { width: 1px; height: 22px; background: var(--border); }
+  .toolbar { display: flex; gap: 6px; align-items: center; }
+
+  .btn {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 6px 11px;
+    font-family: var(--sans);
+    font-size: 12.5px;
+    cursor: pointer;
+    transition: all .12s;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    border-radius: 2px;
+  }
+  .btn:hover { border-color: var(--border-hi); background: var(--panel-2); }
+  .btn.primary {
+    background: var(--accent); color: #181000;
+    border-color: var(--accent); font-weight: 500;
+  }
+  .btn.primary:hover { background: var(--accent-hi); border-color: var(--accent-hi); }
+  .btn.ghost { padding: 6px 8px; border-color: transparent; }
+  .btn.ghost:hover { background: var(--panel-2); border-color: var(--border); }
+
+  .seg { display: flex; border: 1px solid var(--border); border-radius: 2px; overflow: hidden; }
+  .seg button {
+    background: transparent; border: 0; color: var(--text-dim);
+    padding: 6px 10px; font-family: var(--mono); font-size: 11px;
+    cursor: pointer; border-right: 1px solid var(--border);
+  }
+  .seg button:last-child { border-right: 0; }
+  .seg button.on { background: var(--text); color: var(--bg); }
+  .seg button:hover:not(.on) { background: var(--panel-2); color: var(--text); }
+
+  .spacer { flex: 1; }
+  .meta {
+    font-family: var(--mono); font-size: 11px; color: var(--text-faint);
+  }
+  .meta .count { color: var(--accent); font-weight: 500; }
+
+  /* ===== Main grid ===== */
+  main {
+    display: grid;
+    grid-template-columns: 1fr 380px;
+    overflow: hidden;
+  }
+
+  /* ===== Canvas ===== */
+  .canvas {
+    position: relative;
+    background:
+      radial-gradient(circle at 1px 1px, #2a2a2c 1px, transparent 1px);
+    background-size: 24px 24px;
+    background-color: #0a0a0b;
+    overflow: auto;
+    display: flex;
+    justify-content: center;
+    padding: 32px;
+  }
+  .frame-wrap {
+    position: relative;
+    background: #fff;
+    box-shadow: 0 8px 40px rgba(0,0,0,0.5), 0 0 0 1px var(--border);
+    transition: width .25s ease;
+    height: fit-content;
+  }
+  .frame-wrap.desktop { width: 100%; max-width: 1240px; }
+  .frame-wrap.tablet  { width: 768px; }
+  .frame-wrap.mobile  { width: 390px; }
+  iframe {
+    display: block;
+    width: 100%;
+    height: 800px;
+    border: 0;
+    background: #fff;
+  }
+
+  /* Hover label — floats over canvas, follows mouse */
+  .hover-label {
+    position: fixed;
+    background: var(--accent);
+    color: #181000;
+    padding: 4px 8px;
+    font-family: var(--mono);
+    font-size: 11px;
+    font-weight: 600;
+    pointer-events: none;
+    z-index: 1000;
+    border: 1px solid #181000;
+    box-shadow: 2px 2px 0 rgba(0,0,0,0.6);
+    display: none;
+    white-space: nowrap;
+    max-width: 460px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .hover-label .tag { color: #cf3a00; font-weight: 700; }
+  .hover-label .dim { opacity: 0.7; font-weight: 400; }
+
+  /* Mode banner */
+  .mode-banner {
+    position: absolute; top: 14px; left: 50%;
+    transform: translateX(-50%);
+    background: rgba(15,15,16,0.92);
+    color: var(--accent);
+    font-family: var(--mono); font-size: 11px;
+    padding: 6px 12px;
+    border: 1px solid var(--accent);
+    z-index: 50; pointer-events: none;
+    transition: opacity .2s;
+  }
+  .mode-banner.hidden { opacity: 0; }
+
+  /* ===== Sidebar ===== */
+  aside {
+    background: var(--panel);
+    border-left: 1px solid var(--border);
+    display: grid;
+    grid-template-rows: auto 1fr auto;
+    overflow: hidden;
+  }
+  .side-head { padding: 14px 16px 10px; border-bottom: 1px solid var(--border); }
+  .side-head .label {
+    font-family: var(--mono); font-size: 10px; letter-spacing: 0.12em;
+    text-transform: uppercase; color: var(--text-faint); margin-bottom: 4px;
+  }
+  .side-head h2 {
+    margin: 0; font-family: var(--serif); font-weight: 500;
+    font-size: 20px; letter-spacing: -0.015em;
+  }
+
+  .annot-list { overflow-y: auto; padding: 8px; }
+  .annot-list:empty::before {
+    content: 'Hover over the preview, then click any element to start.';
+    display: block; padding: 24px 12px; color: var(--text-faint);
+    font-style: italic; text-align: center; line-height: 1.5;
+    font-family: var(--serif);
+  }
+  .annot {
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--accent);
+    padding: 10px 12px;
+    margin-bottom: 8px;
+    cursor: pointer;
+    transition: background .12s, border-color .12s;
+  }
+  .annot:hover { background: #242426; }
+  .annot.selected { border-color: var(--text); background: #242426; }
+  .annot.resolved { border-left-color: var(--good); opacity: 0.65; }
+
+  .annot-head {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 6px;
+  }
+  .annot-num {
+    font-family: var(--mono); font-size: 11px;
+    color: var(--accent); font-weight: 600;
+  }
+  .annot.resolved .annot-num { color: var(--good); }
+  .annot-actions { display: flex; gap: 4px; }
+  .annot-actions button {
+    background: transparent; border: 0; color: var(--text-faint);
+    font-family: var(--mono); font-size: 11px; cursor: pointer; padding: 2px 4px;
+  }
+  .annot-actions button:hover { color: var(--text); }
+  .annot-actions button.danger:hover { color: var(--bad); }
+
+  .annot-selector {
+    font-family: var(--mono); font-size: 11px;
+    color: var(--accent-hi);
+    background: rgba(255, 122, 46, 0.08);
+    padding: 4px 6px;
+    margin-bottom: 6px;
+    word-break: break-all;
+    border-left: 2px solid var(--accent);
+  }
+  .annot-preview {
+    font-family: var(--mono); font-size: 10.5px;
+    color: var(--text-dim);
+    background: var(--bg);
+    padding: 4px 6px;
+    margin-bottom: 6px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    border: 1px solid var(--border);
+  }
+  .annot textarea {
+    width: 100%;
+    min-height: 60px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 8px;
+    font-family: var(--sans);
+    font-size: 13px;
+    resize: vertical;
+    outline: none;
+    line-height: 1.45;
+  }
+  .annot textarea:focus { border-color: var(--accent); }
+  .annot textarea::placeholder { color: var(--text-faint); font-style: italic; }
+
+  .side-foot {
+    border-top: 1px solid var(--border);
+    padding: 10px 12px;
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+
+  /* ===== Welcome ===== */
+  .welcome {
+    position: absolute; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    background: var(--bg); z-index: 100;
+  }
+  .welcome.hidden { display: none; }
+  .welcome-card {
+    max-width: 560px; padding: 36px;
+    background: var(--panel); border: 1px solid var(--border);
+  }
+  .welcome-card .eyebrow {
+    font-family: var(--mono); font-size: 11px; color: var(--accent);
+    letter-spacing: 0.15em; text-transform: uppercase; margin-bottom: 10px;
+  }
+  .welcome-card h1 {
+    font-family: var(--serif); font-weight: 500;
+    font-size: 38px; margin: 0 0 8px;
+    letter-spacing: -0.025em; line-height: 1.05;
+  }
+  .welcome-card h1 em { font-style: italic; color: var(--accent); }
+  .welcome-card p {
+    color: var(--text-dim); line-height: 1.55; margin: 0 0 24px;
+  }
+  .welcome-card textarea {
+    width: 100%; height: 200px;
+    background: var(--bg); color: var(--text);
+    border: 1px solid var(--border);
+    padding: 12px; font-family: var(--mono); font-size: 12px;
+    outline: none; resize: vertical; margin-bottom: 12px;
+  }
+  .welcome-card textarea:focus { border-color: var(--accent); }
+  .welcome-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+  input[type=file] { display: none; }
+
+  /* Export modal */
+  .modal {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.75);
+    z-index: 200;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 40px;
+  }
+  .modal.show { display: flex; }
+  .modal-card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    width: 100%;
+    max-width: 760px;
+    max-height: 80vh;
+    display: grid;
+    grid-template-rows: auto 1fr auto;
+    overflow: hidden;
+  }
+  .modal-head {
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border);
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .modal-head h3 {
+    margin: 0; font-family: var(--serif); font-weight: 500; font-size: 20px;
+  }
+  .modal-head .x { cursor: pointer; color: var(--text-dim); font-size: 18px; }
+  .modal-head .x:hover { color: var(--text); }
+  .modal-body {
+    overflow: auto; padding: 16px 20px;
+  }
+  .modal-body pre {
+    margin: 0;
+    font-family: var(--mono); font-size: 12px;
+    color: var(--text);
+    background: var(--bg);
+    border: 1px solid var(--border);
+    padding: 14px;
+    white-space: pre-wrap;
+    word-break: break-word;
+    line-height: 1.5;
+  }
+  .modal-foot {
+    padding: 12px 20px;
+    border-top: 1px solid var(--border);
+    display: flex; justify-content: space-between;
+    gap: 8px;
+  }
+
+  /* Scrollbars */
+  .annot-list::-webkit-scrollbar, .canvas::-webkit-scrollbar,
+  .modal-body::-webkit-scrollbar { width: 10px; height: 10px; }
+  .annot-list::-webkit-scrollbar-thumb, .canvas::-webkit-scrollbar-thumb,
+  .modal-body::-webkit-scrollbar-thumb { background: var(--border-hi); }
+  .annot-list::-webkit-scrollbar-track, .canvas::-webkit-scrollbar-track,
+  .modal-body::-webkit-scrollbar-track { background: transparent; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">Annotate<em>HTML</em></div>
+  <div class="divider"></div>
+
+  <div class="toolbar">
+    <button class="btn ghost" id="load-btn">↑ Load</button>
+    <input type="file" id="file-input" accept=".html,.htm,text/html" />
+    <button class="btn ghost" id="save-btn">↓ Save JSON</button>
+    <button class="btn ghost" id="import-btn">⇉ Import</button>
+    <input type="file" id="import-input" accept=".json,application/json" />
+  </div>
+
+  <div class="divider"></div>
+
+  <div class="seg" id="mode-seg" title="Inspect = click elements to annotate. Browse = interact with page normally.">
+    <button data-mode="inspect" class="on">⌖ Inspect</button>
+    <button data-mode="browse">↗ Browse</button>
+  </div>
+
+  <div class="divider"></div>
+
+  <div class="seg" id="viewport-seg">
+    <button data-vp="desktop" class="on">DESKTOP</button>
+    <button data-vp="tablet">TABLET</button>
+    <button data-vp="mobile">MOBILE</button>
+  </div>
+
+  <div class="spacer"></div>
+
+  <div class="meta"><span class="count" id="open-count">0</span> open · <span id="resolved-count">0</span> resolved</div>
+
+  <button class="btn primary" id="copy-ai" title="Copy AI-ready markdown brief">📋 Copy for AI</button>
+</header>
+
+<main>
+  <div class="canvas" id="canvas">
+    <div class="frame-wrap desktop" id="frame-wrap">
+      <iframe id="frame" sandbox="allow-same-origin allow-scripts allow-forms" srcdoc=""></iframe>
+      <div class="mode-banner" id="mode-banner">Inspect mode — hover, then click any element</div>
+    </div>
+  </div>
+
+  <aside>
+    <div class="side-head">
+      <div class="label">Workspace</div>
+      <h2>Annotations</h2>
+    </div>
+    <div class="annot-list" id="annot-list"></div>
+    <div class="side-foot">
+      <button class="btn ghost" id="clear-all">Clear all</button>
+      <button class="btn ghost" id="toggle-resolved">Hide resolved</button>
+      <button class="btn ghost" id="new-doc">New doc</button>
+    </div>
+  </aside>
+</main>
+
+<div class="hover-label" id="hover-label"></div>
+
+<!-- Welcome -->
+<div class="welcome" id="welcome">
+  <div class="welcome-card">
+    <div class="eyebrow">Element-level HTML annotator for AI handoff</div>
+    <h1>Click. Comment. <em>Ship</em>.</h1>
+    <p>Hover any element in your HTML, click to anchor a comment to it. Each annotation captures a precise CSS selector so an AI agent can find and modify exactly what you meant.</p>
+    <textarea id="html-input" placeholder="Paste your HTML here..."><!DOCTYPE html>
+<html>
+<head>
+<style>
+  body { font-family: -apple-system, sans-serif; margin: 0; background: #fafaf7; color: #1a1a1a; }
+  .hero { padding: 80px 40px; background: linear-gradient(135deg, #ff7a2e 0%, #f4d03f 100%); color: #fff; }
+  .hero h1 { font-size: 56px; margin: 0 0 16px; font-weight: 800; letter-spacing: -0.02em; }
+  .hero p { font-size: 20px; max-width: 540px; opacity: 0.9; }
+  .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; padding: 60px 40px; }
+  .card { padding: 28px; background: #fff; border: 1px solid #eee; }
+  .card h3 { margin: 0 0 8px; }
+  .cta { display: inline-block; margin-top: 24px; padding: 14px 28px; background: #1a1a1a; color: #fff; text-decoration: none; font-weight: 600; }
+</style>
+</head>
+<body>
+  <section class="hero">
+    <h1 class="hero-title">Build something beautiful.</h1>
+    <p class="hero-sub">This is a sample page. Hover any element and click to annotate.</p>
+    <a href="#" class="cta">Get started →</a>
+  </section>
+  <section class="grid">
+    <div class="card"><h3>Fast</h3><p>Built for speed.</p></div>
+    <div class="card"><h3>Flexible</h3><p>Bend it to your needs.</p></div>
+    <div class="card"><h3>Friendly</h3><p>A joy to use.</p></div>
+  </section>
+</body>
+</html></textarea>
+    <div class="welcome-actions">
+      <button class="btn primary" id="load-from-paste">Load this HTML →</button>
+      <button class="btn" id="welcome-file">Upload .html file</button>
+    </div>
+  </div>
+</div>
+
+<!-- Export modal -->
+<div class="modal" id="export-modal">
+  <div class="modal-card">
+    <div class="modal-head">
+      <h3>AI-ready brief</h3>
+      <span class="x" id="modal-close">✕</span>
+    </div>
+    <div class="modal-body">
+      <pre id="export-text"></pre>
+    </div>
+    <div class="modal-foot">
+      <div class="meta" id="export-meta"></div>
+      <div style="display:flex; gap:6px;">
+        <button class="btn" id="export-download">Download .md</button>
+        <button class="btn primary" id="export-copy">Copy to clipboard</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* =========================================================
+   State
+   ========================================================= */
+const state = {
+  html: '',
+  annotations: [],
+  selectedId: null,
+  mode: 'inspect',
+  viewport: 'desktop',
+  hideResolved: false,
+};
+
+const $ = (id) => document.getElementById(id);
+const frame = $('frame');
+const list = $('annot-list');
+const hoverLabel = $('hover-label');
+const banner = $('mode-banner');
+
+/* =========================================================
+   CSS selector generation
+   - prefer #id when unique
+   - tag + up to 2 classes per level
+   - :nth-of-type when needed for uniqueness
+   ========================================================= */
+function cssEscape(s) {
+  return (window.CSS && CSS.escape) ? CSS.escape(s) : s.replace(/([^\w-])/g, '\\$1');
+}
+
+function getSelector(el, root) {
+  const doc = el.ownerDocument;
+  // unique id?
+  if (el.id && doc.querySelectorAll('#' + cssEscape(el.id)).length === 1) {
+    return '#' + cssEscape(el.id);
+  }
+  const parts = [];
+  let cur = el;
+  while (cur && cur.nodeType === 1 && cur !== doc.body && cur !== doc.documentElement) {
+    let part = cur.tagName.toLowerCase();
+    if (cur.id && doc.querySelectorAll('#' + cssEscape(cur.id)).length === 1) {
+      parts.unshift('#' + cssEscape(cur.id));
+      break;
+    }
+    // include up to 2 stable classes (skip our own injected ones)
+    const classes = Array.from(cur.classList).filter(c => !c.startsWith('__annot-'));
+    if (classes.length) {
+      part += '.' + classes.slice(0, 2).map(cssEscape).join('.');
+    }
+    // disambiguate among siblings of same tag
+    const parent = cur.parentNode;
+    if (parent && parent.children) {
+      const sameTag = Array.from(parent.children).filter(c => c.tagName === cur.tagName);
+      if (sameTag.length > 1) {
+        const idx = sameTag.indexOf(cur) + 1;
+        part += `:nth-of-type(${idx})`;
+      }
+    }
+    parts.unshift(part);
+    cur = cur.parentNode;
+  }
+  return parts.join(' > ');
+}
+
+function shortOuter(el, max = 200) {
+  const html = (el.outerHTML || '').replace(/\s+/g, ' ').trim();
+  return html.length > max ? html.slice(0, max) + '…' : html;
+}
+
+/* =========================================================
+   Iframe loading + injection
+   ========================================================= */
+function loadHTML(html, keepAnnotations = false) {
+  state.html = html;
+  if (!keepAnnotations) {
+    state.annotations = [];
+    state.selectedId = null;
+  }
+  frame.srcdoc = html;
+  $('welcome').classList.add('hidden');
+  frame.onload = () => {
+    fitIframeHeight();
+    setupIframeHandlers();
+    reapplyTaggedElements();
+    render();
+  };
+}
+
+function fitIframeHeight() {
+  try {
+    const doc = frame.contentDocument;
+    if (!doc || !doc.body) return;
+    const h = Math.max(doc.body.scrollHeight, doc.documentElement.scrollHeight, 600);
+    frame.style.height = h + 'px';
+  } catch (e) {}
+}
+
+function setupIframeHandlers() {
+  const doc = frame.contentDocument;
+  if (!doc) return;
+
+  // Inject overlay CSS
+  const old = doc.getElementById('__annot-styles');
+  if (old) old.remove();
+  const style = doc.createElement('style');
+  style.id = '__annot-styles';
+  style.textContent = `
+    .__annot-hover {
+      outline: 2px solid #ff7a2e !important;
+      outline-offset: -2px !important;
+      cursor: crosshair !important;
+      background-color: rgba(255, 122, 46, 0.08) !important;
+    }
+    .__annot-tagged {
+      outline: 2px dashed #ff7a2e !important;
+      outline-offset: -2px !important;
+      position: relative !important;
+    }
+    .__annot-tagged::before {
+      content: attr(data-annot-num) !important;
+      position: absolute !important;
+      top: -10px !important; left: -10px !important;
+      width: 22px !important; height: 22px !important;
+      background: #ff7a2e !important;
+      color: #181000 !important;
+      font-family: 'JetBrains Mono', monospace !important;
+      font-size: 11px !important; font-weight: 700 !important;
+      border-radius: 50% !important;
+      display: flex !important;
+      align-items: center !important; justify-content: center !important;
+      z-index: 99999 !important;
+      box-shadow: 0 0 0 2px #fff, 0 2px 6px rgba(0,0,0,0.3) !important;
+      pointer-events: none !important;
+    }
+    .__annot-selected {
+      outline: 3px solid #181000 !important;
+      outline-offset: -3px !important;
+      box-shadow: inset 0 0 0 3px #ff7a2e !important;
+    }
+    body.__annot-inspect, body.__annot-inspect * {
+      cursor: crosshair !important;
+    }
+  `;
+  doc.head.appendChild(style);
+
+  // Mark body for cursor styling in inspect mode
+  doc.body.classList.toggle('__annot-inspect', state.mode === 'inspect');
+
+  let hovered = null;
+
+  doc.addEventListener('mouseover', (e) => {
+    if (state.mode !== 'inspect') return;
+    const t = e.target;
+    if (!t || t === doc.body || t === doc.documentElement) return;
+    if (hovered && hovered !== t) hovered.classList.remove('__annot-hover');
+    t.classList.add('__annot-hover');
+    hovered = t;
+    showHoverLabel(t, e);
+  }, true);
+
+  doc.addEventListener('mouseout', (e) => {
+    if (state.mode !== 'inspect') return;
+    if (e.target === hovered) {
+      e.target.classList.remove('__annot-hover');
+      hovered = null;
+      hideHoverLabel();
+    }
+  }, true);
+
+  doc.addEventListener('mousemove', (e) => {
+    if (state.mode !== 'inspect' || !hovered) return;
+    positionHoverLabel(e);
+  }, true);
+
+  // Capture click in inspect mode before user scripts run
+  doc.addEventListener('click', (e) => {
+    if (state.mode !== 'inspect') return;
+    e.preventDefault();
+    e.stopPropagation();
+    const t = e.target;
+    if (!t || t === doc.body || t === doc.documentElement) return;
+    addAnnotationForElement(t);
+  }, true);
+
+  // Re-fit iframe height if content changes after load
+  if (window.ResizeObserver) {
+    const ro = new ResizeObserver(() => fitIframeHeight());
+    ro.observe(doc.body);
+  }
+}
+
+function showHoverLabel(el, evt) {
+  const sel = getSelector(el);
+  const tag = el.tagName.toLowerCase();
+  const classes = Array.from(el.classList).filter(c => !c.startsWith('__annot-'));
+  const id = el.id;
+  let html = `<span class="tag">&lt;${tag}&gt;</span>`;
+  if (id) html += ` <span class="dim">#</span>${id}`;
+  if (classes.length) html += ` <span class="dim">.</span>${classes.join('.')}`;
+  html += ` <span class="dim">— ${sel}</span>`;
+  hoverLabel.innerHTML = html;
+  hoverLabel.style.display = 'block';
+  positionHoverLabel(evt);
+}
+
+function positionHoverLabel(evt) {
+  // evt is from inside iframe; translate coords
+  const frameRect = frame.getBoundingClientRect();
+  const x = frameRect.left + evt.clientX + 14;
+  const y = frameRect.top + evt.clientY + 14;
+  hoverLabel.style.left = Math.min(x, window.innerWidth - 470) + 'px';
+  hoverLabel.style.top = Math.min(y, window.innerHeight - 30) + 'px';
+}
+
+function hideHoverLabel() {
+  hoverLabel.style.display = 'none';
+}
+
+/* =========================================================
+   Annotation CRUD
+   ========================================================= */
+function addAnnotationForElement(el) {
+  const selector = getSelector(el);
+  const annot = {
+    id: 'a_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7),
+    selector,
+    tag: el.tagName.toLowerCase(),
+    text: (el.textContent || '').trim().slice(0, 120),
+    outerHTML: shortOuter(el),
+    comment: '',
+    resolved: false,
+    createdAt: new Date().toISOString(),
+  };
+  state.annotations.push(annot);
+  state.selectedId = annot.id;
+  reapplyTaggedElements();
+  render();
+  // Focus newly-created annotation's textarea
+  setTimeout(() => {
+    const ta = document.querySelector(`.annot[data-id="${annot.id}"] textarea`);
+    if (ta) { ta.focus(); ta.scrollIntoView({ block: 'center', behavior: 'smooth' }); }
+  }, 50);
+}
+
+function deleteAnnot(id) {
+  state.annotations = state.annotations.filter(a => a.id !== id);
+  if (state.selectedId === id) state.selectedId = null;
+  reapplyTaggedElements();
+  render();
+}
+function toggleResolve(id) {
+  const a = state.annotations.find(x => x.id === id);
+  if (a) { a.resolved = !a.resolved; reapplyTaggedElements(); render(); }
+}
+function updateComment(id, text) {
+  const a = state.annotations.find(x => x.id === id);
+  if (a) { a.comment = text; updateCounts(); }
+}
+
+/* =========================================================
+   Apply visual badges to tagged elements inside iframe
+   ========================================================= */
+function reapplyTaggedElements() {
+  const doc = frame.contentDocument;
+  if (!doc) return;
+  // clear all
+  doc.querySelectorAll('.__annot-tagged, .__annot-selected').forEach(el => {
+    el.classList.remove('__annot-tagged', '__annot-selected');
+    el.removeAttribute('data-annot-num');
+  });
+  state.annotations.forEach((a, i) => {
+    if (state.hideResolved && a.resolved) return;
+    try {
+      const found = doc.querySelectorAll(a.selector);
+      if (found.length) {
+        const el = found[0];
+        el.classList.add('__annot-tagged');
+        el.setAttribute('data-annot-num', (i + 1).toString());
+        if (state.selectedId === a.id) el.classList.add('__annot-selected');
+      }
+    } catch (e) {
+      // bad selector — skip
+    }
+  });
+}
+
+/* =========================================================
+   Sidebar render
+   ========================================================= */
+function render() {
+  list.innerHTML = '';
+  const items = state.annotations
+    .map((a, i) => ({ a, n: i + 1 }))
+    .filter(({ a }) => !state.hideResolved || !a.resolved);
+
+  items.forEach(({ a, n }) => {
+    const el = document.createElement('div');
+    el.className = 'annot' + (state.selectedId === a.id ? ' selected' : '') + (a.resolved ? ' resolved' : '');
+    el.dataset.id = a.id;
+
+    el.innerHTML = `
+      <div class="annot-head">
+        <span class="annot-num">#${n}${a.resolved ? ' · resolved' : ''}</span>
+        <div class="annot-actions">
+          <button data-act="locate" title="Scroll to element">⤓</button>
+          <button data-act="resolve" title="${a.resolved ? 'Reopen' : 'Mark resolved'}">${a.resolved ? '↺' : '✓'}</button>
+          <button data-act="del" class="danger" title="Delete">✕</button>
+        </div>
+      </div>
+      <div class="annot-selector">${escapeHtml(a.selector)}</div>
+      <div class="annot-preview" title="${escapeHtml(a.outerHTML)}">${escapeHtml(a.outerHTML)}</div>
+      <textarea placeholder="What needs to change here?">${escapeHtml(a.comment)}</textarea>
+    `;
+
+    // Selection on card click (but not when clicking textarea/buttons)
+    el.addEventListener('click', (e) => {
+      if (e.target.closest('textarea') || e.target.closest('button')) return;
+      state.selectedId = a.id;
+      reapplyTaggedElements();
+      render();
+      scrollToElement(a.selector);
+    });
+
+    el.querySelector('textarea').addEventListener('input', (e) => updateComment(a.id, e.target.value));
+    el.querySelector('[data-act="locate"]').addEventListener('click', (e) => { e.stopPropagation(); scrollToElement(a.selector); });
+    el.querySelector('[data-act="resolve"]').addEventListener('click', (e) => { e.stopPropagation(); toggleResolve(a.id); });
+    el.querySelector('[data-act="del"]').addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (confirm('Delete this annotation?')) deleteAnnot(a.id);
+    });
+
+    list.appendChild(el);
+  });
+
+  updateCounts();
+}
+
+function updateCounts() {
+  $('open-count').textContent = state.annotations.filter(a => !a.resolved).length;
+  $('resolved-count').textContent = state.annotations.filter(a => a.resolved).length;
+}
+
+function escapeHtml(s) {
+  return (s || '').replace(/[&<>"']/g, ch => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[ch]));
+}
+
+function scrollToElement(selector) {
+  const doc = frame.contentDocument;
+  if (!doc) return;
+  try {
+    const el = doc.querySelector(selector);
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    const frameRect = frame.getBoundingClientRect();
+    const canvas = $('canvas');
+    // Element's position relative to canvas scroll
+    const targetY = canvas.scrollTop + (frameRect.top - canvas.getBoundingClientRect().top) + rect.top - 100;
+    canvas.scrollTo({ top: targetY, behavior: 'smooth' });
+  } catch (e) {}
+}
+
+/* =========================================================
+   Mode + viewport
+   ========================================================= */
+$('mode-seg').addEventListener('click', (e) => {
+  const btn = e.target.closest('button');
+  if (!btn) return;
+  state.mode = btn.dataset.mode;
+  $('mode-seg').querySelectorAll('button').forEach(b => b.classList.toggle('on', b.dataset.mode === state.mode));
+  banner.textContent = state.mode === 'inspect'
+    ? 'Inspect mode — hover, then click any element'
+    : 'Browse mode — interact with the page normally';
+  banner.classList.remove('hidden');
+  clearTimeout(window.__bannerTO);
+  window.__bannerTO = setTimeout(() => banner.classList.add('hidden'), 1800);
+  const doc = frame.contentDocument;
+  if (doc) doc.body.classList.toggle('__annot-inspect', state.mode === 'inspect');
+  if (state.mode === 'browse') hideHoverLabel();
+});
+
+$('viewport-seg').addEventListener('click', (e) => {
+  const btn = e.target.closest('button');
+  if (!btn) return;
+  state.viewport = btn.dataset.vp;
+  $('viewport-seg').querySelectorAll('button').forEach(b => b.classList.toggle('on', b.dataset.vp === state.viewport));
+  $('frame-wrap').className = 'frame-wrap ' + state.viewport;
+  setTimeout(fitIframeHeight, 300);
+});
+
+/* =========================================================
+   File IO
+   ========================================================= */
+$('load-btn').addEventListener('click', () => $('file-input').click());
+$('file-input').addEventListener('change', (e) => {
+  const f = e.target.files[0];
+  if (!f) return;
+  const reader = new FileReader();
+  reader.onload = ev => loadHTML(ev.target.result);
+  reader.readAsText(f);
+});
+$('welcome-file').addEventListener('click', () => $('file-input').click());
+$('load-from-paste').addEventListener('click', () => {
+  const v = $('html-input').value.trim();
+  if (v) loadHTML(v);
+});
+$('save-btn').addEventListener('click', () => {
+  const payload = {
+    version: 2,
+    exportedAt: new Date().toISOString(),
+    html: state.html,
+    annotations: state.annotations,
+  };
+  download(JSON.stringify(payload, null, 2), `annotations-${Date.now()}.json`, 'application/json');
+});
+$('import-btn').addEventListener('click', () => $('import-input').click());
+$('import-input').addEventListener('change', (e) => {
+  const f = e.target.files[0];
+  if (!f) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    try {
+      const data = JSON.parse(ev.target.result);
+      if (data.html) {
+        loadHTML(data.html);
+        setTimeout(() => {
+          state.annotations = data.annotations || [];
+          reapplyTaggedElements();
+          render();
+        }, 200);
+      }
+    } catch (err) { alert('Could not parse: ' + err.message); }
+  };
+  reader.readAsText(f);
+});
+
+$('clear-all').addEventListener('click', () => {
+  if (!state.annotations.length) return;
+  if (confirm(`Delete all ${state.annotations.length} annotations?`)) {
+    state.annotations = [];
+    state.selectedId = null;
+    reapplyTaggedElements();
+    render();
+  }
+});
+
+$('toggle-resolved').addEventListener('click', (e) => {
+  state.hideResolved = !state.hideResolved;
+  e.target.textContent = state.hideResolved ? 'Show resolved' : 'Hide resolved';
+  reapplyTaggedElements();
+  render();
+});
+
+$('new-doc').addEventListener('click', () => {
+  if (state.annotations.length > 0 && !confirm('Discard current annotations?')) return;
+  $('welcome').classList.remove('hidden');
+});
+
+/* =========================================================
+   AI Export
+   ========================================================= */
+function buildAIBrief() {
+  const open = state.annotations.filter(a => !a.resolved);
+  const lines = [];
+  lines.push('# UI Feedback');
+  lines.push('');
+  lines.push(`${open.length} annotation${open.length === 1 ? '' : 's'} to address. Each one targets a specific element by CSS selector.`);
+  lines.push('');
+  open.forEach((a, i) => {
+    lines.push(`## #${state.annotations.indexOf(a) + 1} — \`${a.selector}\``);
+    lines.push('');
+    lines.push(`**Element:** \`<${a.tag}>\`${a.text ? ` — "${a.text}"` : ''}`);
+    lines.push('');
+    lines.push('```html');
+    lines.push(a.outerHTML);
+    lines.push('```');
+    lines.push('');
+    lines.push(`**Feedback:** ${a.comment || '_(no comment)_'}`);
+    lines.push('');
+  });
+  if (state.annotations.some(a => a.resolved)) {
+    lines.push('---');
+    lines.push(`_${state.annotations.filter(a => a.resolved).length} resolved annotation(s) omitted._`);
+  }
+  return lines.join('\n');
+}
+
+$('copy-ai').addEventListener('click', () => {
+  if (!state.annotations.length) {
+    alert('No annotations yet — hover and click some elements first.');
+    return;
+  }
+  const text = buildAIBrief();
+  $('export-text').textContent = text;
+  const open = state.annotations.filter(a => !a.resolved).length;
+  $('export-meta').textContent = `${open} annotation${open === 1 ? '' : 's'} · ${text.length} chars`;
+  $('export-modal').classList.add('show');
+});
+
+$('modal-close').addEventListener('click', () => $('export-modal').classList.remove('show'));
+$('export-modal').addEventListener('click', (e) => { if (e.target.id === 'export-modal') $('export-modal').classList.remove('show'); });
+
+$('export-copy').addEventListener('click', async () => {
+  const text = $('export-text').textContent;
+  try {
+    await navigator.clipboard.writeText(text);
+    const btn = $('export-copy');
+    const orig = btn.textContent;
+    btn.textContent = '✓ Copied';
+    setTimeout(() => btn.textContent = orig, 1500);
+  } catch (e) {
+    alert('Clipboard blocked — select the text manually.');
+  }
+});
+
+$('export-download').addEventListener('click', () => {
+  download($('export-text').textContent, `feedback-${Date.now()}.md`, 'text/markdown');
+});
+
+function download(content, name, type) {
+  const blob = new Blob([content], { type });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = name; a.click();
+  URL.revokeObjectURL(url);
+}
+
+render();
+</script>
+</body>
+</html>
