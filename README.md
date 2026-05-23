@@ -85,6 +85,30 @@ annotate) and **Browse** (interact with the page) modes, and leave a page-wide c
 Click an element, type what should change, and it's added as an annotation — click away
 without typing and the empty one is discarded automatically.
 
+### Several reviews at once
+
+Each `pinpoint annotate` runs independently: it gets its own random `127.0.0.1` port and
+its own browser tab (titled after the file, so concurrent reviews are easy to tell apart).
+Open as many as you like from different terminals or Claude Code sessions. To see what's
+live:
+
+```bash
+pinpoint list
+```
+
+```
+2 active Pinpoint reviews:
+
+  • PLAN.html
+    pid 9549 · port 54426 · http://127.0.0.1:54426/__pinpoint/
+    /Users/you/app/PLAN.html
+  …
+```
+
+(`list` also prunes records of reviews whose process has already exited.) Note: the
+`/pinpoint` slash command **blocks the chat it runs in** until you finalize — to review
+several at once, launch them from separate Claude Code sessions or terminals.
+
 ### How it ends
 
 | Action            | What Claude receives                          |

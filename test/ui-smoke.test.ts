@@ -57,6 +57,10 @@ test("boots into a shell with the brand and a zero count", () => {
   expect(document.body.dataset.theme).toBe("light");
 });
 
+test("names the tab after the file so concurrent reviews are distinguishable", () => {
+  expect(document.title).toBe("PLAN.html — Pinpoint");
+});
+
 test("theme toggle flips light → dark", () => {
   (document.querySelector('[data-role="theme-toggle"]') as HTMLElement).click();
   expect(document.body.dataset.theme).toBe("dark");

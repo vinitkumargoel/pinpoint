@@ -1,4 +1,5 @@
 import { annotate } from "./commands/annotate.ts";
+import { list } from "./commands/list.ts";
 
 export const VERSION = "0.2.0";
 
@@ -7,12 +8,14 @@ const HELP = `pinpoint — visual HTML & Markdown annotator for Claude Code
 Usage:
   pinpoint annotate <file>   Open the annotator on an .html or .md file; print the feedback brief to stdout
   pinpoint <file>            Shorthand for "annotate"
+  pinpoint list              List the review sessions running right now
   pinpoint --help            Show this help
   pinpoint --version         Show version
 
-'annotate' starts a local server, opens your browser, and blocks until you
-click Approve or Send Feedback (or close the tab). The result prints to stdout,
-which is how the /pinpoint slash command hands feedback back to Claude Code.`;
+'annotate' starts a local server on its own port, opens your browser, and blocks
+until you click Approve or Send Feedback (or close the tab). The result prints to
+stdout, which is how the /pinpoint slash command hands feedback back to Claude Code.
+Each invocation is independent, so you can run several reviews at once.`;
 
 export async function run(argv: string[]): Promise<void> {
   const args = argv.slice(2);
@@ -32,6 +35,10 @@ export async function run(argv: string[]): Promise<void> {
   }
   if (first === "annotate") {
     await annotate(args.slice(1));
+    return;
+  }
+  if (first === "list") {
+    await list();
     return;
   }
   if (!first.startsWith("-")) {
