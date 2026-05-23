@@ -1,3 +1,6 @@
 node_modules/
 dist/
 .DS_Store
+
+# Claude Code local-only settings (machine-specific paths, never share)
+.claude/settings.local.json

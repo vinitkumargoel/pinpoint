@@ -4,17 +4,40 @@
   "description": "Visual HTML mockup annotator for Claude Code — review a page in the browser and hand a structured brief back to the agent.",
   "type": "module",
   "license": "MIT",
+  "author": "Vinit Kumar",
+  "homepage": "https://github.com/vinitkumargoel/pinpoint#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/vinitkumargoel/pinpoint.git"
+  },
+  "bugs": {
+    "url": "https://github.com/vinitkumargoel/pinpoint/issues"
+  },
+  "keywords": [
+    "claude-code",
+    "annotator",
+    "html",
+    "mockup",
+    "review",
+    "feedback",
+    "cli",
+    "bun"
+  ],
   "bin": {
     "pinpoint": "src/index.ts"
   },
   "files": [
     "src",
-    "README.md"
+    "commands",
+    "scripts",
+    "README.md",
+    "LICENSE"
   ],
   "scripts": {
     "dev": "bun run src/index.ts",
     "compile": "bun build --compile --minify src/index.ts --outfile dist/pinpoint",
     "install:local": "bash scripts/install.sh",
+    "uninstall": "bash scripts/uninstall.sh",
     "typecheck": "bunx tsc --noEmit"
   },
   "engines": {
