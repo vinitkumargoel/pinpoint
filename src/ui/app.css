@@ -1,0 +1,250 @@
+/* ============================================================
+   APP CHROME + THEME TOKENS
+   ============================================================ */
+* { box-sizing: border-box; }
+html, body { height: 100%; margin: 0; }
+body {
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  display: grid;
+  grid-template-rows: 1fr;
+  overflow: hidden;
+  --radius: 3px;
+  --ctrl-h: 32px;    /* uniform height for every button & segmented control */
+  --fs-ui: 12.5px;   /* uniform UI text size */
+}
+/* Theme tokens — the only thing the toggle swaps. */
+body[data-theme="light"] {
+  --bg:#f4f4f5; --panel:#ffffff; --text:#18181b; --dim:#71717a; --faint:#a1a1aa;
+  --border:#e4e4e7; --accent:#18181b; --accent-soft:#f4f4f5; --accent-ink:#ffffff;
+}
+body[data-theme="dark"] {
+  --bg:#0e0e10; --panel:#161618; --text:#ededee; --dim:#9a9aa0; --faint:#65656b;
+  --border:#2a2a2d; --accent:#ededee; --accent-soft:rgba(237,237,238,0.08); --accent-ink:#161618;
+}
+
+#shells { position: relative; overflow: hidden; }
+.shell { position: absolute; inset: 0; }
+.shell[hidden] { display: none !important; }
+
+/* ============================================================
+   SHARED COMPONENTS (driven by theme tokens)
+   ============================================================ */
+.topbar {
+  display: flex; align-items: center; gap: 12px;
+  height: 50px; padding: 0 16px;
+  background: var(--panel); border-bottom: 1px solid var(--border);
+  user-select: none;
+}
+.brand { font-weight: 600; font-size: 15.5px; letter-spacing: -0.01em; }
+.brand b { color: var(--accent); }
+.topbar .spacer { flex: 1; }
+.file-name {
+  font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 12px;
+  color: var(--dim); max-width: 280px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.counts { font-size: 12px; color: var(--dim); white-space: nowrap; }
+.counts b { color: var(--accent); font-weight: 600; }
+
+/* Minimal-Mono family signature: mono on the key chrome */
+.brand, .counts, .annot-num, .panel-title { font-family: ui-monospace, "SF Mono", Menlo, monospace; }
+
+.seg { display: inline-flex; height: var(--ctrl-h); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+.seg button {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: transparent; border: 0; color: var(--dim);
+  padding: 0 13px; font: inherit; font-size: var(--fs-ui); cursor: pointer;
+}
+.seg button + button { border-left: 1px solid var(--border); }
+.seg button.on { background: var(--accent); color: var(--accent-ink); }
+.seg button:hover:not(.on) { background: var(--bg); color: var(--text); }
+
+.canvas { display: flex; justify-content: center; padding: 18px; overflow: hidden; }
+.frame-wrap {
+  width: 100%; max-width: 1060px; height: 100%;
+  background: #fff; border: 1px solid var(--border); border-radius: var(--radius);
+  box-shadow: 0 8px 34px rgba(0,0,0,0.12); overflow: hidden;
+}
+iframe { display: block; width: 100%; height: 100%; border: 0; background: #fff; }
+
+.panel { background: var(--panel); display: flex; flex-direction: column; min-height: 0; }
+.panel-head { padding: 13px 14px; border-bottom: 1px solid var(--border); }
+.panel-title { font-weight: 600; font-size: 14px; margin-bottom: 9px; }
+.global-wrap label {
+  display: block; font-size: 10px; letter-spacing: 0.09em;
+  text-transform: uppercase; color: var(--faint); margin-bottom: 5px;
+}
+.global-wrap textarea {
+  width: 100%; min-height: 44px; resize: vertical;
+  border: 1px solid var(--border); border-radius: var(--radius); padding: 8px 10px;
+  font: inherit; font-size: 12.5px; color: var(--text);
+  background: var(--bg); outline: none; line-height: 1.45;
+}
+.global-wrap textarea:focus { border-color: var(--accent); }
+
+.annot-list { flex: 1; overflow: auto; padding: 10px; }
+.annot-list:empty::before {
+  content: 'Switch to Inspect, hover the preview, then click any element to leave a note.';
+  display: block; padding: 24px 16px; color: var(--faint);
+  font-size: 12.5px; text-align: center; line-height: 1.55;
+}
+.annot {
+  background: var(--bg); border: 1px solid var(--border);
+  border-left: 3px solid var(--accent); border-radius: var(--radius);
+  padding: 9px 11px; margin-bottom: 8px; cursor: pointer;
+  transition: box-shadow .12s, background .12s;
+}
+.annot:hover { background: var(--accent-soft); }
+.annot.selected { box-shadow: 0 0 0 2px var(--accent); }
+.annot-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+.annot-num { font-size: 11px; font-weight: 600; color: var(--accent); }
+.annot-actions { display: flex; gap: 2px; }
+.annot-actions button {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 24px; height: 24px; padding: 0;
+  background: transparent; border: 0; color: var(--faint);
+  cursor: pointer; font-size: 12px; border-radius: 4px;
+}
+.annot-actions button:hover { color: var(--text); background: var(--bg); }
+.annot-actions button.danger:hover { color: #dc2626; }
+.annot-selector {
+  font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 11px;
+  color: var(--accent); background: var(--accent-soft);
+  padding: 3px 6px; border-radius: 5px; margin-bottom: 6px; word-break: break-all;
+}
+.annot-preview {
+  font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 10.5px;
+  color: var(--dim); background: var(--bg);
+  border: 1px solid var(--border); border-radius: 5px;
+  padding: 3px 6px; margin-bottom: 6px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.annot textarea {
+  width: 100%; min-height: 52px; resize: vertical;
+  border: 1px solid var(--border); border-radius: var(--radius); padding: 7px;
+  font: inherit; font-size: 12.5px; color: var(--text);
+  background: var(--panel); outline: none; line-height: 1.45;
+}
+.annot textarea:focus { border-color: var(--accent); }
+
+.panel-foot {
+  display: flex; align-items: center; gap: 6px;
+  padding: 10px; border-top: 1px solid var(--border);
+}
+.panel-foot .spacer { flex: 1; }
+
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  height: var(--ctrl-h); padding: 0 14px;
+  border: 1px solid var(--border); background: var(--panel); color: var(--text);
+  border-radius: var(--radius); font: inherit; font-size: var(--fs-ui);
+  white-space: nowrap; cursor: pointer;
+  transition: border-color .12s, background .12s, color .12s, filter .12s;
+}
+.btn:hover { border-color: var(--accent); }
+.btn:active { transform: translateY(0.5px); }
+.btn.ghost { border-color: transparent; color: var(--dim); padding: 0 10px; }
+.btn.ghost:hover { color: var(--text); background: var(--bg); }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); font-weight: 600; }
+.btn.primary:hover { filter: brightness(1.08); }
+/* square, icon-only button — same height as text buttons */
+.btn.theme-toggle { width: var(--ctrl-h); padding: 0; font-size: 14px; }
+
+/* ============================================================
+   SHELL LAYOUT — top toolbar + canvas + right sidebar.
+   ============================================================ */
+.shell {
+  display: grid;
+  grid-template-rows: 50px 1fr;
+  grid-template-columns: 1fr var(--sidebar, 380px);
+  grid-template-areas: "top top" "canvas panel";
+  background: var(--bg); color: var(--text);
+}
+.topbar { grid-area: top; }
+.canvas { grid-area: canvas; }
+.panel  { grid-area: panel; border-left: 1px solid var(--border); }
+
+/* ============================================================
+   FLOATING HOVER LABEL (positioned over the active iframe)
+   ============================================================ */
+.hover-label {
+  position: fixed; z-index: 9999; display: none;
+  background: #0f172a; color: #fff;
+  font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 11px;
+  padding: 4px 8px; border-radius: 6px;
+  box-shadow: 0 6px 18px rgba(0,0,0,0.32);
+  max-width: 460px; white-space: nowrap; overflow: hidden;
+  text-overflow: ellipsis; pointer-events: none;
+}
+.hover-label .t { color: #818cf8; font-weight: 700; }
+.hover-label .s { opacity: 0.65; }
+
+/* ============================================================
+   MODAL (themed confirm dialog)
+   ============================================================ */
+.modal {
+  position: fixed; inset: 0; z-index: 10000;
+  background: rgba(15,23,42,0.6);
+  display: none; align-items: center; justify-content: center; padding: 32px;
+}
+.modal.show { display: flex; }
+.modal-card {
+  background: var(--panel); color: var(--text); width: 100%; max-width: 720px; max-height: 82vh;
+  border-radius: 16px; overflow: hidden;
+  display: grid; grid-template-rows: auto 1fr auto;
+  box-shadow: 0 30px 80px rgba(0,0,0,0.42);
+}
+.modal-head { display: flex; justify-content: space-between; align-items: center; padding: 15px 20px; border-bottom: 1px solid var(--border); }
+.modal-head h3 { margin: 0; font-size: 16px; }
+.modal-body { overflow: auto; padding: 18px 20px; }
+.modal-foot { display: flex; justify-content: flex-end; gap: 8px; padding: 13px 20px; border-top: 1px solid var(--border); }
+.modal-foot .btn { padding: 0 16px; }
+.modal-foot .btn:hover { border-color: var(--accent); }
+.modal-foot .btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); font-weight: 600; }
+
+/* confirm dialog */
+.confirm-card { max-width: 420px; }
+.confirm-card .modal-body p { margin: 0; color: var(--text); font-size: 13.5px; line-height: 1.55; }
+.btn.danger-btn, .modal-foot .btn.danger-btn { background: #dc2626; border-color: #dc2626; color: #fff; }
+.btn.danger-btn:hover, .modal-foot .btn.danger-btn:hover { filter: brightness(1.07); border-color: #dc2626; }
+
+/* ============================================================
+   DONE OVERLAY (after Approve / Send Feedback / close)
+   ============================================================ */
+.done-overlay { position: fixed; inset: 0; z-index: 10002; display: none; align-items: center; justify-content: center; background: var(--bg); }
+.done-overlay.show { display: flex; }
+.done-card { text-align: center; max-width: 460px; padding: 32px; }
+.done-icon {
+  width: 64px; height: 64px; margin: 0 auto 18px; border-radius: 50%;
+  background: var(--accent); color: var(--accent-ink);
+  display: flex; align-items: center; justify-content: center; font-size: 30px;
+}
+.done-card h2 { margin: 0 0 8px; font-size: 20px; }
+.done-card p { margin: 0; color: var(--dim); font-size: 14px; line-height: 1.6; }
+
+/* stale annotation (selector no longer matches the rendered page) */
+.annot.missing { border-left-color: #f59e0b; }
+.annot-warn { color: #d97706; font-size: 11px; margin: -2px 0 6px; }
+.annot-actions button[disabled] { opacity: 0.35; cursor: not-allowed; }
+
+/* keyboard focus visibility */
+button:focus-visible, textarea:focus-visible, [tabindex]:focus-visible {
+  outline: 2px solid var(--accent); outline-offset: 2px;
+}
+
+/* toast — inverted pill, themed */
+.toast {
+  position: fixed; left: 50%; bottom: 24px; z-index: 10001;
+  transform: translateX(-50%) translateY(8px);
+  background: var(--text); color: var(--bg);
+  padding: 9px 16px; border-radius: 9px; font-size: 13px; font-weight: 500;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.32);
+  opacity: 0; pointer-events: none; max-width: 80vw; text-align: center;
+  transition: opacity .18s ease, transform .18s ease;
+}
+.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+/* thin scrollbars */
+.annot-list::-webkit-scrollbar, .modal-body::-webkit-scrollbar { width: 9px; }
+.annot-list::-webkit-scrollbar-thumb, .modal-body::-webkit-scrollbar-thumb { background: rgba(120,120,120,0.35); border-radius: 9px; }

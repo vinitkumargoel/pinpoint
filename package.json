@@ -36,16 +36,19 @@
     "LICENSE"
   ],
   "scripts": {
-    "dev": "bun run src/index.ts",
-    "compile": "bun build --compile --minify src/index.ts --outfile dist/pinpoint",
+    "build:ui": "bun run scripts/build-ui.ts",
+    "dev": "bun run build:ui && bun run src/index.ts",
+    "compile": "bun run build:ui && bun build --compile --minify src/index.ts --outfile dist/pinpoint",
     "install:local": "bash scripts/install.sh",
     "uninstall": "bash scripts/uninstall.sh",
-    "typecheck": "bunx tsc --noEmit"
+    "typecheck": "bunx tsc --noEmit",
+    "test": "bun run build:ui && bun test"
   },
   "engines": {
     "bun": ">=1.1.0"
   },
   "devDependencies": {
+    "@happy-dom/global-registrator": "^20.9.0",
     "@types/bun": "latest",
     "typescript": "^5"
   },

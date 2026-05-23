@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Pinpoint — HTML Annotator</title>
+<!-- PINPOINT_STYLES -->
+</head>
+<body data-theme="light">
+
+<div id="shells"></div>
+
+<div class="hover-label" id="hover-label"></div>
+
+<div class="modal" id="confirm-modal">
+  <div class="modal-card confirm-card" role="alertdialog" aria-modal="true" aria-labelledby="confirm-title" aria-describedby="confirm-msg">
+    <div class="modal-head">
+      <h3 id="confirm-title">Confirm</h3>
+    </div>
+    <div class="modal-body"><p id="confirm-msg"></p></div>
+    <div class="modal-foot">
+      <button type="button" class="btn" id="confirm-cancel">Cancel</button>
+      <button type="button" class="btn primary" id="confirm-ok">Confirm</button>
+    </div>
+  </div>
+</div>
+
+<div class="done-overlay" id="done" role="status" aria-live="polite">
+  <div class="done-card">
+    <div class="done-icon" id="done-icon">&#10003;</div>
+    <h2 id="done-title">Feedback sent</h2>
+    <p id="done-msg">You can close this tab and return to Claude Code.</p>
+  </div>
+</div>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<!-- PINPOINT_SCRIPT -->
+</body>
+</html>

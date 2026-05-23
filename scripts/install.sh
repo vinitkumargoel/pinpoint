@@ -51,9 +51,11 @@ else
   REPO="$INSTALL_DIR"
 fi
 
-# --- 2) Dependencies -------------------------------------------------------
+# --- 2) Dependencies + UI build --------------------------------------------
 say "→ installing dependencies"
 ( cd "$REPO" && bun install --silent )
+say "→ building annotator UI"
+( cd "$REPO" && bun run build:ui )
 
 # --- 3) PATH shim ----------------------------------------------------------
 BIN_DIR="${HOME}/.local/bin"
