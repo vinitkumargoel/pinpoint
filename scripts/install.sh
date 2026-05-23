@@ -69,9 +69,15 @@ say "✓ CLI:     $BIN_DIR/pinpoint"
 CMD_DIR="${HOME}/.claude/commands"
 mkdir -p "$CMD_DIR"
 cp "$REPO/commands/pinpoint.md" "$CMD_DIR/pinpoint.md"
-say "✓ command: $CMD_DIR/pinpoint.md  (/pinpoint <file.html>)"
+say "✓ command: $CMD_DIR/pinpoint.md  (/pinpoint <file>)"
 
-# --- 5) PATH check ---------------------------------------------------------
+# --- 5) Skill (lets Claude know when & how to use Pinpoint) ----------------
+SKILL_DIR="${HOME}/.claude/skills/pinpoint"
+mkdir -p "$SKILL_DIR"
+cp "$REPO/skills/pinpoint/SKILL.md" "$SKILL_DIR/SKILL.md"
+say "✓ skill:   $SKILL_DIR/SKILL.md"
+
+# --- 6) PATH check ---------------------------------------------------------
 case ":$PATH:" in
   *":$BIN_DIR:"*) ;;
   *)

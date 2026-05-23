@@ -1,10 +1,11 @@
 # Pinpoint
 
-**Visual HTML annotator for [Claude Code](https://docs.anthropic.com/en/docs/claude-code).**
+**Visual HTML & Markdown annotator for [Claude Code](https://docs.anthropic.com/en/docs/claude-code).**
 
-Run `/pinpoint <file.html>`, review the page in your browser, click elements to leave
+Run `/pinpoint <file>`, review the page in your browser, click elements to leave
 element-anchored comments, then **Approve** or **Send Feedback** — the feedback returns to
-your Claude Code session as a structured brief Claude can act on.
+your Claude Code session as a structured brief Claude can act on. Point it at an `.html`
+file or a `.md` plan/spec (Markdown is rendered to a clean HTML document for review).
 
 It's **local-only and Claude-Code-only**: no cloud, no accounts, no telemetry. The server
 binds to `127.0.0.1` on a random port and shuts down the moment you finalize.
@@ -30,7 +31,9 @@ curl -fsSL https://raw.githubusercontent.com/vinitkumargoel/pinpoint/main/script
 ```
 
 This clones Pinpoint to `~/.local/share/pinpoint`, drops a `pinpoint` shim in
-`~/.local/bin`, and installs the `/pinpoint` slash command into `~/.claude/commands`.
+`~/.local/bin`, installs the `/pinpoint` slash command into `~/.claude/commands`, and
+installs a **skill** into `~/.claude/skills/pinpoint` so Claude knows when and how to reach
+for Pinpoint on its own.
 
 > **Prerequisites:** [Bun](https://bun.sh) ≥ 1.1 and `git`. If Bun is missing, install it
 > with `curl -fsSL https://bun.sh/install | bash`.
@@ -56,7 +59,8 @@ curl -fsSL https://raw.githubusercontent.com/vinitkumargoel/pinpoint/main/script
 curl -fsSL https://raw.githubusercontent.com/vinitkumargoel/pinpoint/main/scripts/uninstall.sh | bash
 ```
 
-Removes the shim, the slash command, runtime state (`~/.pinpoint`), and the managed clone.
+Removes the shim, the slash command, the skill, runtime state (`~/.pinpoint`), and the
+managed clone.
 
 ---
 
@@ -66,6 +70,7 @@ Inside Claude Code:
 
 ```
 /pinpoint path/to/PLAN.html
+/pinpoint path/to/PLAN.md
 ```
 
 This blocks the session, opens the annotator in your browser, and resumes Claude once you
@@ -76,14 +81,15 @@ pinpoint annotate path/to/PLAN.html
 ```
 
 In the browser you can hover elements to inspect them, switch between **Inspect** (click to
-annotate) and **Browse** (interact with the page) modes, leave a page-wide comment, and
-preview at desktop / tablet / mobile widths.
+annotate) and **Browse** (interact with the page) modes, and leave a page-wide comment.
+Click an element, type what should change, and it's added as an annotation — click away
+without typing and the empty one is discarded automatically.
 
 ### How it ends
 
 | Action            | What Claude receives                          |
 |-------------------|-----------------------------------------------|
-| **Send Feedback** | a markdown brief — file path, page-wide note, and every open annotation with its CSS selector, element context, and your comment |
+| **Send Feedback** | a markdown brief — file path, page-wide note, and every annotation with its CSS selector, element context, and your comment |
 | **Approve**       | `✅ Approved — no changes requested.`          |
 | **Close tab**     | `Review window closed — no feedback submitted.` |
 | **Ctrl+C**        | aborts the review (exit 130)                   |
@@ -99,7 +105,8 @@ ends the review.
 /pinpoint FILE  →  !pinpoint annotate FILE  (blocks the session)
                       → local server on a random 127.0.0.1 port (serves FILE's folder)
                       → browser opens /__pinpoint/  (the annotator app)
-                          → iframe src=/FILE renders the real page (CSS/JS/assets intact)
+                          → iframe src=/FILE renders the real page (CSS/JS/assets intact;
+                            .md is rendered to a styled HTML document first)
                       → Approve / Send Feedback POSTs /__pinpoint/finalize
                       → CLI prints the result to stdout, exits → Claude resumes
 ```
@@ -139,10 +146,12 @@ src/
   cli.ts                arg parsing / help / version
   commands/annotate.ts  resolve file → start server → open browser → await → print
   server.ts             Bun.serve: static target dir + /__pinpoint API + result promise
+  markdown.ts           render a .md file to a styled HTML document (via marked)
   session.ts            ~/.pinpoint/sessions/<pid>.json bookkeeping
   browser.ts            cross-platform "open URL"
   ui/annotator.html     the annotator (embedded into the binary at compile time)
 commands/pinpoint.md    the /pinpoint slash command (copied to ~/.claude/commands)
+skills/pinpoint/        the Pinpoint skill (copied to ~/.claude/skills)
 scripts/install.sh      installer / updater (web one-liner + local dev)
 scripts/uninstall.sh    uninstaller
 test/fixture/           a page with external CSS/JS/image to prove render fidelity

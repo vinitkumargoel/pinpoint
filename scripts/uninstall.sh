@@ -10,9 +10,10 @@ set -euo pipefail
 INSTALL_DIR="${PINPOINT_HOME:-${XDG_DATA_HOME:-$HOME/.local/share}/pinpoint}"
 say() { printf '%s\n' "$*" >&2; }
 
-rm -f  "${HOME}/.local/bin/pinpoint"        && say "✓ removed CLI shim"
+rm -f  "${HOME}/.local/bin/pinpoint"          && say "✓ removed CLI shim"
 rm -f  "${HOME}/.claude/commands/pinpoint.md" && say "✓ removed /pinpoint command"
-rm -rf "${HOME}/.pinpoint"                   && say "✓ removed runtime state (~/.pinpoint)"
+rm -rf "${HOME}/.claude/skills/pinpoint"      && say "✓ removed pinpoint skill"
+rm -rf "${HOME}/.pinpoint"                    && say "✓ removed runtime state (~/.pinpoint)"
 
 if [ -d "$INSTALL_DIR/.git" ]; then
   rm -rf "$INSTALL_DIR" && say "✓ removed managed clone ($INSTALL_DIR)"

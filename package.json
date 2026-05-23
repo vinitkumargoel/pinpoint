@@ -1,7 +1,7 @@
 {
   "name": "pinpoint",
-  "version": "0.1.0",
-  "description": "Visual HTML mockup annotator for Claude Code — review a page in the browser and hand a structured brief back to the agent.",
+  "version": "0.2.0",
+  "description": "Visual HTML & Markdown annotator for Claude Code — review a page in the browser and hand a structured brief back to the agent.",
   "type": "module",
   "license": "MIT",
   "author": "Vinit Kumar",
@@ -17,6 +17,7 @@
     "claude-code",
     "annotator",
     "html",
+    "markdown",
     "mockup",
     "review",
     "feedback",
@@ -29,6 +30,7 @@
   "files": [
     "src",
     "commands",
+    "skills",
     "scripts",
     "README.md",
     "LICENSE"
@@ -46,5 +48,8 @@
   "devDependencies": {
     "@types/bun": "latest",
     "typescript": "^5"
+  },
+  "dependencies": {
+    "marked": "^18.0.4"
   }
 }

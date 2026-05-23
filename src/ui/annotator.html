@@ -104,10 +104,8 @@
   }
   .annot:hover { background: var(--accent-soft); }
   .annot.selected { box-shadow: 0 0 0 2px var(--accent); }
-  .annot.resolved { opacity: 0.6; border-left-color: #22c55e; }
   .annot-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
   .annot-num { font-size: 11px; font-weight: 600; color: var(--accent); }
-  .annot.resolved .annot-num { color: #16a34a; }
   .annot-actions { display: flex; gap: 2px; }
   .annot-actions button {
     display: inline-flex; align-items: center; justify-content: center;
@@ -313,7 +311,7 @@ const CHROME = `
     </div>
     <div class="file-name" data-role="file-name" title=""></div>
     <div class="spacer"></div>
-    <div class="counts"><b data-role="count-open">0</b> open &middot; <span data-role="count-resolved">0</span> resolved</div>
+    <div class="counts" data-role="counts">0 annotations</div>
     <button type="button" class="btn ghost theme-toggle" data-role="theme-toggle" title="Toggle light / dark theme" aria-label="Toggle light or dark theme"><span data-role="theme-icon">&#127769;</span></button>
   </header>
   <div class="canvas" data-role="canvas">
@@ -332,7 +330,6 @@ const CHROME = `
     <div class="annot-list" data-role="annot-list"></div>
     <div class="panel-foot">
       <button class="btn ghost" data-role="clear-all">Clear</button>
-      <button class="btn ghost" data-role="toggle-resolved">Hide resolved</button>
       <div class="spacer"></div>
       <button class="btn" data-role="finalize-approve">Approve</button>
       <button class="btn primary" data-role="finalize-send">Send Feedback</button>
@@ -351,7 +348,6 @@ const state = {
   annotations: [],
   selectedId: null,
   mode: 'inspect',
-  hideResolved: false,
   theme: 'light',
 };
 const shells = {};      // dir -> { el, iframe }
@@ -470,7 +466,6 @@ function wireShell(dir) {
     state.globalComment = e.target.value; persist();
   });
   s.querySelector('[data-role="clear-all"]').onclick = clearAll;
-  s.querySelector('[data-role="toggle-resolved"]').onclick = (e) => toggleHideResolved(e.target);
   s.querySelector('[data-role="finalize-approve"]').onclick = onApprove;
   s.querySelector('[data-role="finalize-send"]').onclick = onSend;
   s.querySelector('[data-role="theme-toggle"]').onclick = toggleTheme;
@@ -580,6 +575,9 @@ function hideHover() {
    Annotation CRUD
    ========================================================= */
 function addAnnotation(el) {
+  // Drop any earlier annotation the user started but left blank before
+  // beginning a new one — an annotation only exists once it has a comment.
+  pruneEmpty();
   const annot = {
     id: 'a_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7),
     selector: getSelector(el),
@@ -587,7 +585,6 @@ function addAnnotation(el) {
     text: (el.textContent || '').trim().slice(0, 120),
     outerHTML: shortOuter(el),
     comment: '',
-    resolved: false,
     createdAt: new Date().toISOString(),
   };
   state.annotations.push(annot);
@@ -605,7 +602,18 @@ function deleteAnnot(id) {
   if (state.selectedId === id) state.selectedId = null;
   persist(); reapplyActive(); render();
 }
+/* Remove every annotation whose comment is still blank. Empty annotations are
+   transient (a click that never got a comment) and never reach the brief. */
+function pruneEmpty() {
+  const before = state.annotations.length;
+  state.annotations = state.annotations.filter(a => a.comment.trim() !== '');
+  if (state.annotations.length === before) return false;
+  if (!state.annotations.some(a => a.id === state.selectedId)) state.selectedId = null;
+  persist();
+  return true;
+}
 async function requestDeleteAnnot(id) {
+  if (!state.annotations.some(a => a.id === id)) return; // already gone (e.g. pruned)
   const ok = await confirmDialog({
     title: 'Delete annotation',
     message: 'This annotation will be removed. This can’t be undone.',
@@ -613,10 +621,6 @@ async function requestDeleteAnnot(id) {
     danger: true,
   });
   if (ok) { deleteAnnot(id); toast('Annotation deleted'); }
-}
-function toggleResolve(id) {
-  const a = state.annotations.find(x => x.id === id);
-  if (a) { a.resolved = !a.resolved; persist(); reapplyActive(); render(); }
 }
 function updateComment(id, text) {
   const a = state.annotations.find(x => x.id === id);
@@ -633,7 +637,6 @@ function reapply(doc) {
     el.removeAttribute('data-pp-num');
   });
   state.annotations.forEach((a, i) => {
-    if (state.hideResolved && a.resolved) return;
     try {
       const found = doc.querySelectorAll(a.selector);
       if (found.length) {
@@ -661,21 +664,18 @@ function render() {
   const doc = activeDoc();
   state.annotations
     .map((a, i) => ({ a, n: i + 1 }))
-    .filter(({ a }) => !state.hideResolved || !a.resolved)
     .forEach(({ a, n }) => {
       const found = elementExists(doc, a.selector);
       const el = document.createElement('div');
       el.className = 'annot'
         + (state.selectedId === a.id ? ' selected' : '')
-        + (a.resolved ? ' resolved' : '')
         + (found ? '' : ' missing');
       el.dataset.id = a.id;
       el.innerHTML = `
         <div class="annot-head">
-          <span class="annot-num">#${n}${a.resolved ? ' &middot; resolved' : ''}${found ? '' : ' &middot; missing'}</span>
+          <span class="annot-num">#${n}${found ? '' : ' &middot; missing'}</span>
           <div class="annot-actions">
             <button type="button" data-act="locate" title="Scroll to element" aria-label="Scroll to element"${found ? '' : ' disabled'}>&#8675;</button>
-            <button type="button" data-act="resolve" title="${a.resolved ? 'Reopen' : 'Resolve'}" aria-label="${a.resolved ? 'Reopen' : 'Resolve'}">${a.resolved ? '&#8634;' : '&#10003;'}</button>
             <button type="button" data-act="del" class="danger" title="Delete" aria-label="Delete">&#10005;</button>
           </div>
         </div>
@@ -690,15 +690,29 @@ function render() {
         reapplyActive(); render();
         scrollToElement(a.selector);
       });
-      el.querySelector('textarea').addEventListener('input', (e) => updateComment(a.id, e.target.value));
+      const ta = el.querySelector('textarea');
+      ta.addEventListener('input', (e) => updateComment(a.id, e.target.value));
+      // Leaving a still-blank annotation discards it automatically.
+      ta.addEventListener('blur', (e) => {
+        const cur = state.annotations.find(x => x.id === a.id);
+        if (!cur || cur.comment.trim() !== '') return;
+        const rt = e.relatedTarget;
+        const nextCard = rt && rt.closest ? rt.closest('.annot') : null;
+        const nextId = nextCard ? nextCard.dataset.id : null;
+        const intoTextarea = rt && rt.tagName === 'TEXTAREA';
+        deleteAnnot(a.id);
+        if (intoTextarea && nextId) {
+          const nta = active && active.querySelector(`.annot[data-id="${nextId}"] textarea`);
+          if (nta) { nta.focus(); try { nta.setSelectionRange(nta.value.length, nta.value.length); } catch (e2) {} }
+        }
+      });
       el.querySelector('[data-act="locate"]').addEventListener('click', (e) => { e.stopPropagation(); scrollToElement(a.selector); });
-      el.querySelector('[data-act="resolve"]').addEventListener('click', (e) => { e.stopPropagation(); toggleResolve(a.id); });
       el.querySelector('[data-act="del"]').addEventListener('click', (e) => { e.stopPropagation(); requestDeleteAnnot(a.id); });
       list.appendChild(el);
     });
 
-  q('count-open').textContent = state.annotations.filter(a => !a.resolved).length;
-  q('count-resolved').textContent = state.annotations.filter(a => a.resolved).length;
+  const n = state.annotations.length;
+  q('counts').textContent = n + (n === 1 ? ' annotation' : ' annotations');
   q('mode-inspect').classList.toggle('on', state.mode === 'inspect');
   q('mode-browse').classList.toggle('on', state.mode === 'browse');
 }
@@ -737,11 +751,6 @@ async function clearAll() {
   persist(); reapplyActive(); render();
   toast('Cleared all annotations');
 }
-function toggleHideResolved(btn) {
-  state.hideResolved = !state.hideResolved;
-  if (btn) btn.textContent = state.hideResolved ? 'Show resolved' : 'Hide resolved';
-  reapplyActive(); render();
-}
 
 /* =========================================================
    Direction switch (single shell, kept for engine symmetry)
@@ -750,8 +759,6 @@ function switchTo(dir) {
   Object.values(shells).forEach(s => { s.el.hidden = true; });
   active = shells[dir].el;
   active.hidden = false;
-  const tr = q('toggle-resolved');
-  if (tr) tr.textContent = state.hideResolved ? 'Show resolved' : 'Hide resolved';
   const doc = activeDoc();
   if (doc) { doc.body.classList.toggle('__pp-inspect', state.mode === 'inspect'); reapply(doc); }
   render();
@@ -761,7 +768,7 @@ function switchTo(dir) {
    Brief builder → markdown handed back to Claude Code
    ========================================================= */
 function buildBrief() {
-  const open = state.annotations.filter(a => !a.resolved);
+  const items = state.annotations.filter(a => a.comment.trim() !== '');
   const L = [];
   L.push('# UI Feedback');
   L.push('');
@@ -773,11 +780,10 @@ function buildBrief() {
     L.push(state.globalComment.trim());
     L.push('');
   }
-  L.push(`## ${open.length} element annotation${open.length === 1 ? '' : 's'}`);
+  L.push(`## ${items.length} element annotation${items.length === 1 ? '' : 's'}`);
   L.push('');
-  open.forEach(a => {
-    const idx = state.annotations.indexOf(a) + 1;
-    L.push(`### #${idx} — \`${a.selector}\``);
+  items.forEach((a, i) => {
+    L.push(`### #${i + 1} — \`${a.selector}\``);
     L.push('');
     L.push(`**Element:** \`<${a.tag}>\`${a.text ? ` — "${a.text}"` : ''}`);
     L.push('');
@@ -785,11 +791,9 @@ function buildBrief() {
     L.push(a.outerHTML);
     L.push('```');
     L.push('');
-    L.push(`**Feedback:** ${a.comment || '_(no comment)_'}`);
+    L.push(`**Feedback:** ${a.comment.trim()}`);
     L.push('');
   });
-  const res = state.annotations.filter(a => a.resolved).length;
-  if (res) { L.push('---'); L.push(`_${res} resolved annotation(s) omitted._`); }
   return L.join('\n');
 }
 
@@ -814,7 +818,9 @@ async function postFinalize(payload) {
 let finalized = false;
 async function onSend() {
   if (finalized) return;
-  if (!state.annotations.some(a => !a.resolved) && !state.globalComment.trim()) {
+  pruneEmpty();
+  render();
+  if (!state.annotations.length && !state.globalComment.trim()) {
     toast('Nothing to send yet — add a note or annotate an element');
     return;
   }
@@ -826,11 +832,13 @@ async function onSend() {
 }
 async function onApprove() {
   if (finalized) return;
-  const openCount = state.annotations.filter(a => !a.resolved).length;
-  if (openCount || state.globalComment.trim()) {
+  pruneEmpty();
+  render();
+  const count = state.annotations.length;
+  if (count || state.globalComment.trim()) {
     const ok = await confirmDialog({
       title: 'Approve anyway?',
-      message: `You have ${openCount} open annotation${openCount === 1 ? '' : 's'} that won’t be sent. Approve with no feedback?`,
+      message: `You have ${count} annotation${count === 1 ? '' : 's'} that won’t be sent. Approve with no feedback?`,
       confirmLabel: 'Approve anyway',
     });
     if (!ok) return;

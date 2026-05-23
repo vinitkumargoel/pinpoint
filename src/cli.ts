@@ -1,14 +1,14 @@
 import { annotate } from "./commands/annotate.ts";
 
-export const VERSION = "0.1.0";
+export const VERSION = "0.2.0";
 
-const HELP = `pinpoint — visual HTML annotator for Claude Code
+const HELP = `pinpoint — visual HTML & Markdown annotator for Claude Code
 
 Usage:
-  pinpoint annotate <file.html>   Open the annotator on a file; print the feedback brief to stdout
-  pinpoint <file.html>            Shorthand for "annotate"
-  pinpoint --help                 Show this help
-  pinpoint --version              Show version
+  pinpoint annotate <file>   Open the annotator on an .html or .md file; print the feedback brief to stdout
+  pinpoint <file>            Shorthand for "annotate"
+  pinpoint --help            Show this help
+  pinpoint --version         Show version
 
 'annotate' starts a local server, opens your browser, and blocks until you
 click Approve or Send Feedback (or close the tab). The result prints to stdout,

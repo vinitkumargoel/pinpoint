@@ -1,4 +1,5 @@
 import { resolve, sep } from "node:path";
+import { renderMarkdown } from "./markdown.ts";
 // Embedded at build time so the compiled binary is self-contained.
 // `with { type: "text" }` yields a string at runtime; the cast aligns the type.
 import annotatorHtmlRaw from "./ui/annotator.html" with { type: "text" };
@@ -20,6 +21,8 @@ export interface StartServerOptions {
   filePath: string;
   /** Basename of the file under review, e.g. "PLAN.html". */
   fileName: string;
+  /** When true, the target file is Markdown and is rendered to HTML before it's served. */
+  isMarkdown?: boolean;
 }
 
 export interface RunningServer {
@@ -51,6 +54,7 @@ function safeResolve(root: string, pathname: string): string | null {
 
 export function startServer(opts: StartServerOptions): RunningServer {
   const targetDir = resolve(opts.targetDir);
+  const targetFile = resolve(opts.filePath);
   const targetUrl = "/" + encodeURIComponent(opts.fileName);
 
   const appHtml = injectConfig(annotatorHtml, {
@@ -119,6 +123,13 @@ export function startServer(opts: StartServerOptions): RunningServer {
       if (!full) return new Response("Forbidden", { status: 403 });
       const file = Bun.file(full);
       if (!(await file.exists())) return new Response("Not found", { status: 404 });
+      // The Markdown target is rendered to a styled HTML document; everything
+      // else (including images referenced by the Markdown) is served as-is.
+      if (opts.isMarkdown && full === targetFile) {
+        return new Response(renderMarkdown(await file.text(), opts.fileName), {
+          headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" },
+        });
+      }
       return new Response(file, { headers: { "cache-control": "no-store" } });
     },
   });

@@ -35,8 +35,9 @@ export async function annotate(args: string[]): Promise<void> {
   const targetDir = dirname(filePath);
   const fileName = basename(filePath);
   const project = basename(targetDir);
+  const isMarkdown = /\.(md|markdown|mdown|mkd)$/i.test(fileName);
 
-  const { server, port, appUrl, result } = startServer({ targetDir, filePath, fileName });
+  const { server, port, appUrl, result } = startServer({ targetDir, filePath, fileName, isMarkdown });
   const pid = process.pid;
 
   await writeSession({
@@ -50,7 +51,7 @@ export async function annotate(args: string[]): Promise<void> {
     startedAt: new Date().toISOString(),
   });
 
-  console.error(`\n  Pinpoint — reviewing ${fileName}`);
+  console.error(`\n  Pinpoint — reviewing ${fileName}${isMarkdown ? " (rendered Markdown)" : ""}`);
   console.error(`  ${appUrl}`);
   console.error(`  Annotate in the browser, then click Approve or Send Feedback.`);
   console.error(`  (Closing the tab or Ctrl+C ends the review with no feedback.)\n`);
