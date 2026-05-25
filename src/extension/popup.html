@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Pinpoint</title>
+    <link rel="stylesheet" href="./popup.css" />
+  </head>
+  <body>
+    <main class="shell" data-shell data-shell-status="idle">
+      <header class="bar">
+        <div class="mark">
+          <span class="dot" data-status-dot></span>
+          <span class="wordmark">Pin<b>point</b></span>
+        </div>
+        <div class="seg" data-mode-panel hidden role="group" aria-label="Annotation mode">
+          <button class="seg-btn is-active" type="button" data-mode-inspect>
+            Inspect <kbd>I</kbd>
+          </button>
+          <button class="seg-btn" type="button" data-mode-browse>
+            Browse <kbd>B</kbd>
+          </button>
+        </div>
+      </header>
+
+      <div class="body">
+        <section class="status" aria-live="polite">
+          <p class="status-label" data-status-label>Idle</p>
+          <p class="status-msg" data-status-message>Click Start when a terminal browser session is waiting.</p>
+          <p class="session" data-session-panel hidden>
+            <span class="session-tag">session</span>
+            <code data-session-id></code>
+          </p>
+        </section>
+
+        <section class="review" data-review-panel hidden>
+          <details class="note" open>
+            <summary>Page note</summary>
+            <textarea id="page-note" class="note-input" rows="2" placeholder="Overall feedback on this page…" data-page-note></textarea>
+          </details>
+
+          <div class="list-head">
+            <span class="list-title">Annotations <em data-annot-count>0</em></span>
+            <button class="link-btn" type="button" data-clear>
+              Clear all <kbd>⌫</kbd>
+            </button>
+          </div>
+
+          <div class="scroll">
+            <ol class="list" data-annotation-list></ol>
+            <p class="empty" data-empty-annotations>
+              <span class="empty-mark">&#9678;</span>
+              In <b>Inspect</b> mode, hover the page and click any element to annotate it.
+            </p>
+          </div>
+        </section>
+      </div>
+
+      <footer class="actions">
+        <button class="btn btn-primary" type="button" data-start>Start review</button>
+        <button class="btn btn-primary" type="button" data-retry hidden>Retry</button>
+        <button class="btn btn-ghost" type="button" data-stop hidden>Stop</button>
+        <button class="btn btn-quiet" type="button" data-approve hidden disabled>
+          Approve <kbd>⏎</kbd>
+        </button>
+        <button class="btn btn-primary" type="button" data-send hidden disabled>
+          Send <kbd>⌘⏎</kbd>
+        </button>
+      </footer>
+
+      <button class="help-fab" type="button" data-help title="Keyboard shortcuts (press ?)" aria-label="Keyboard shortcuts">?</button>
+
+      <div class="kbs" data-kbs hidden role="dialog" aria-label="Keyboard shortcuts">
+        <div class="kbs-card">
+          <h2>Keyboard shortcuts</h2>
+          <dl>
+            <div><dt>Inspect mode</dt><dd><kbd>I</kbd></dd></div>
+            <div><dt>Browse mode</dt><dd><kbd>B</kbd></dd></div>
+            <div><dt>Focus page note</dt><dd><kbd>N</kbd></dd></div>
+            <div><dt>Jump to annotation</dt><dd><kbd>1</kbd>…<kbd>9</kbd></dd></div>
+            <div><dt>Start / Retry</dt><dd><kbd>S</kbd></dd></div>
+            <div><dt>Approve</dt><dd><kbd>⏎</kbd></dd></div>
+            <div><dt>Send feedback</dt><dd><kbd>⌘</kbd><kbd>⏎</kbd></dd></div>
+            <div><dt>Clear all</dt><dd><kbd>⌫</kbd></dd></div>
+            <div><dt>Stop / close</dt><dd><kbd>Esc</kbd></dd></div>
+            <div><dt>This menu</dt><dd><kbd>?</kbd></dd></div>
+          </dl>
+          <button class="kbs-close" type="button" data-kbs-close>Close</button>
+        </div>
+      </div>
+    </main>
+
+    <script type="module" src="./popup.js"></script>
+  </body>
+</html>

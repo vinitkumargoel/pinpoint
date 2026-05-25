@@ -3,6 +3,7 @@ import { state, ctx, persist } from "./state";
 import { getSelector, shortOuter } from "./selector";
 import { reapplyActive } from "./iframe";
 import { render } from "./sidebar";
+import { updateFinalizeButtons } from "./dom";
 import { confirmDialog, toast } from "./dialog";
 
 /** Create an annotation for a clicked element and focus its comment box. */
@@ -73,5 +74,8 @@ export function updateComment(id: string, text: string): void {
   if (a) {
     a.comment = text;
     persist();
+    // Typing the first comment flips Approve → Send (and clearing it flips back),
+    // without a full re-render that would steal textarea focus.
+    updateFinalizeButtons();
   }
 }

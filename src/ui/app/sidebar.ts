@@ -1,5 +1,5 @@
 import { state, ctx } from "./state";
-import { q, activeDoc, escapeHtml, elementExists } from "./dom";
+import { q, activeDoc, escapeHtml, elementExists, updateFinalizeButtons } from "./dom";
 import { reapplyActive, scrollToElement } from "./iframe";
 import { updateComment, deleteAnnot, requestDeleteAnnot } from "./annotations";
 
@@ -82,4 +82,5 @@ export function render(): void {
   if (counts) counts.textContent = n + (n === 1 ? " annotation" : " annotations");
   q("mode-inspect")?.classList.toggle("on", state.mode === "inspect");
   q("mode-browse")?.classList.toggle("on", state.mode === "browse");
+  updateFinalizeButtons();
 }

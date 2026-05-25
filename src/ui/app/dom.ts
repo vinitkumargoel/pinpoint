@@ -1,8 +1,29 @@
-import { ctx } from "./state";
+import { ctx, state } from "./state";
 
 /** Find a `[data-role]` element inside the active shell. */
 export function q(role: string): HTMLElement | null {
   return ctx.active ? ctx.active.querySelector<HTMLElement>(`[data-role="${role}"]`) : null;
+}
+
+/** Is there anything worth sending — a page-wide note or any commented annotation? */
+export function hasFeedback(): boolean {
+  return state.globalComment.trim() !== "" || state.annotations.some((a) => a.comment.trim() !== "");
+}
+
+/**
+ * The two finalize buttons are mutually exclusive: with no feedback yet, only
+ * "Approve" shows; the moment any comment exists, "Approve" hides and only
+ * "Send Feedback" shows. Whichever is visible is styled as the primary action.
+ * Cheap enough to call on every keystroke.
+ */
+export function updateFinalizeButtons(): void {
+  const send = q("finalize-send");
+  const approve = q("finalize-approve");
+  if (!send || !approve) return;
+  const fb = hasFeedback();
+  send.style.display = fb ? "" : "none";
+  approve.style.display = fb ? "none" : "";
+  approve.classList.toggle("primary", !fb);
 }
 
 /** The document of the active shell's iframe (the user's rendered file), if loaded. */

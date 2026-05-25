@@ -5,10 +5,12 @@
 Run `/pinpoint <file>`, review the page in your browser, click elements to leave
 element-anchored comments, then **Approve** or **Send Feedback** — the feedback returns to
 your Claude Code session as a structured brief Claude can act on. Point it at an `.html`
-file or a `.md` plan/spec (Markdown is rendered to a clean HTML document for review).
+file or a `.md` plan/spec (Markdown is rendered to a clean HTML document for review), or
+start a browser review when the page you want to annotate is already open in Chrome.
 
-It's **local-only and Claude-Code-only**: no cloud, no accounts, no telemetry. The server
-binds to `127.0.0.1` on a random port and shuts down the moment you finalize.
+It's **local-only and Claude-Code-only**: no cloud, no accounts, no telemetry. File review
+servers bind to `127.0.0.1` on random ports; browser review uses a fixed local discovery
+port for the Chrome extension. Each session shuts down the moment you finalize.
 
 ---
 
@@ -66,6 +68,12 @@ managed clone.
 
 ## Use
 
+### File review
+
+Use file review when the thing to review is an HTML or Markdown file on disk, such as a
+mockup, generated page, PRD, plan, or spec. Pinpoint opens that file in its own browser
+review tab.
+
 Inside Claude Code:
 
 ```
@@ -121,6 +129,57 @@ several at once, launch them from separate Claude Code sessions or terminals.
 Your annotations live in `sessionStorage`, so a page **reload** keeps them; closing the tab
 ends the review.
 
+### Browser review with the Chrome extension
+
+Use browser review when the page to review is already open in Chrome, such as a local dev
+app, preview URL, staging page, authenticated route, or generated browser result. The
+extension is idle until you click **Start**; it does not inspect pages, inject scripts, or
+poll localhost in the background.
+
+From Claude Code:
+
+```
+/pinpoint browser
+```
+
+From a terminal:
+
+```bash
+pinpoint browser
+```
+
+Then open the Pinpoint Chrome extension on the tab you want to annotate and click
+**Start**. If no terminal or agent session is waiting, the extension checks a bounded
+number of times, shows **No Pinpoint session found**, and offers **Retry**.
+
+While connected, use **Inspect** to click elements and add comments, or **Browse** to
+interact with the page normally. Click **Send Feedback** to return the page URL, title,
+page-wide note, element annotations, and a visible-tab screenshot reference to the waiting
+agent or terminal command. Click **Approve** to return no requested changes. Click
+**Stop** to discard the current browser review draft, remove injected highlights/listeners,
+and return the extension to idle without sending feedback.
+
+#### Install the development extension
+
+The extension is currently loaded unpacked from this repo:
+
+```bash
+cd ~/.local/share/pinpoint    # or your local clone
+bun install
+bun run build:extension
+```
+
+Then in Chrome:
+
+1. Open `chrome://extensions`.
+2. Enable **Developer mode**.
+3. Click **Load unpacked**.
+4. Select the generated `dist/extension` directory from this repo.
+
+For local development you can also load `src/extension` directly. Use
+`bun run build:extension` before packaging or release checks; it validates the manifest and
+copies the loadable extension files into `dist/extension`.
+
 ---
 
 ## How it works
@@ -133,6 +192,18 @@ ends the review.
                             .md is rendered to a styled HTML document first)
                       → Approve / Send Feedback POSTs /__pinpoint/finalize
                       → CLI prints the result to stdout, exits → Claude resumes
+```
+
+Browser review uses a fixed local discovery surface so the passive Chrome extension knows
+where to look only after you click **Start**:
+
+```
+/pinpoint browser  →  !pinpoint browser  (blocks the session)
+                         → local browser-session server on 127.0.0.1:60051
+                         → Chrome extension Start discovers the waiting session
+                         → extension injects into the active tab only after connect
+                         → Send Feedback POSTs annotations + screenshot
+                         → CLI prints the browser feedback brief, exits → Claude resumes
 ```
 
 A 1-second heartbeat from the browser distinguishes a reload (a brief gap) from a real tab
@@ -158,7 +229,9 @@ effect immediately — no reinstall needed.
 
 ```bash
 bun run build:ui                                   # bundle src/ui → src/ui/annotator.html
+bun run build:extension                            # validate/copy src/extension → dist/extension
 bun run dev -- annotate test/fixture/index.html    # run the CLI (build:ui runs first)
+bun run dev -- browser                             # wait for the Chrome extension to Start
 bun run typecheck                                   # tsc --noEmit (covers the UI modules)
 bun test                                            # headless UI smoke test (happy-dom)
 bun run compile                                     # → dist/pinpoint (standalone binary)
@@ -168,6 +241,11 @@ The annotator UI is written as split, typed source (`src/ui/index.html` + `app.c
 `app/*.ts`) and bundled by `build:ui` into the single `src/ui/annotator.html` that the
 server embeds. That generated file is git-ignored — `dev`, `compile`, `test`, and the
 installer all run `build:ui` first, so you rarely call it directly.
+
+The Chrome extension source lives in `src/extension`. `bun run build:extension` validates
+the manifest, checks referenced files, and copies the unpacked extension package to
+`dist/extension`. Load that generated directory in Chrome for release-style verification,
+or load `src/extension` directly while iterating.
 
 ### Project layout
 
@@ -180,6 +258,7 @@ src/
   markdown.ts           render a .md file to a styled HTML document (via marked)
   session.ts            ~/.pinpoint/sessions/<pid>.json bookkeeping
   browser.ts            cross-platform "open URL"
+  extension/            Chrome extension source for browser reviews
   ui/
     index.html          the annotator's HTML shell (CSS + script placeholders)
     app.css             the annotator's styles
@@ -188,6 +267,7 @@ src/
 commands/pinpoint.md    the /pinpoint slash command (copied to ~/.claude/commands)
 skills/pinpoint/        the Pinpoint skill (copied to ~/.claude/skills)
 scripts/build-ui.ts     bundle + inline the UI into src/ui/annotator.html
+scripts/build-extension.ts validate/copy src/extension into dist/extension
 scripts/install.sh      installer / updater (web one-liner + local dev)
 scripts/uninstall.sh    uninstaller
 test/                   headless UI smoke test + a fixture page (external CSS/JS/image)

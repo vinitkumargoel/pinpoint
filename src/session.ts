@@ -6,16 +6,25 @@ import { mkdir, writeFile, rm, readdir, readFile } from "node:fs/promises";
  * Runtime session record, mirroring plannotator's ~/.plannotator/sessions/<pid>.json.
  * Lets a user (or a future `pinpoint list`) see which review servers are live.
  */
-export interface SessionInfo {
+interface BaseSessionInfo {
   pid: number;
   port: number;
   url: string;
-  mode: "annotate";
   project: string;
-  file: string;
   label: string;
   startedAt: string;
 }
+
+export interface AnnotateSessionInfo extends BaseSessionInfo {
+  mode: "annotate";
+  file: string;
+}
+
+export interface BrowserSessionInfo extends BaseSessionInfo {
+  mode: "browser";
+}
+
+export type SessionInfo = AnnotateSessionInfo | BrowserSessionInfo;
 
 const sessionsDir = join(homedir(), ".pinpoint", "sessions");
 const sessionPath = (pid: number) => join(sessionsDir, `${pid}.json`);

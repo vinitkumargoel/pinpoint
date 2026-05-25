@@ -5,6 +5,7 @@ import { applyTheme } from "./theme";
 import { startHeartbeat } from "./finalize";
 import { hideHover } from "./hover";
 import { initDialog } from "./dialog";
+import { initKeyboard } from "./keyboard";
 
 /* Boot the annotator. */
 // Name the tab after the file so concurrent reviews are distinguishable.
@@ -16,3 +17,4 @@ buildShells();
 applyTheme();
 switchTo("a");
 startHeartbeat();
+initKeyboard();

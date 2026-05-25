@@ -13,8 +13,9 @@ export async function list(): Promise<void> {
   }
   console.log(`${sessions.length} active Pinpoint review${sessions.length === 1 ? "" : "s"}:\n`);
   for (const s of sessions) {
-    console.log(`  • ${basename(s.file)}`);
+    console.log(`  • ${s.mode === "annotate" ? basename(s.file) : "Browser session"}`);
     console.log(`    pid ${s.pid} · port ${s.port} · ${s.url}`);
-    console.log(`    ${s.file}\n`);
+    if (s.mode === "annotate") console.log(`    ${s.file}`);
+    console.log("");
   }
 }

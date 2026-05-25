@@ -31,12 +31,17 @@
     "src",
     "commands",
     "skills",
+    "docs",
     "scripts",
     "README.md",
     "LICENSE"
   ],
   "scripts": {
     "build:ui": "bun run scripts/build-ui.ts",
+    "build:icons": "bun run scripts/build-icons.ts",
+    "build:extension": "bun run scripts/build-extension.ts",
+    "package:extension": "bun run build:extension",
+    "test:browser-review-smoke": "bun test test/browser-review-smoke.test.ts",
     "dev": "bun run build:ui && bun run src/index.ts",
     "compile": "bun run build:ui && bun build --compile --minify src/index.ts --outfile dist/pinpoint",
     "install:local": "bash scripts/install.sh",

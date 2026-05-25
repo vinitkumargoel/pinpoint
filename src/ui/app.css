@@ -248,3 +248,105 @@ button:focus-visible, textarea:focus-visible, [tabindex]:focus-visible {
 /* thin scrollbars */
 .annot-list::-webkit-scrollbar, .modal-body::-webkit-scrollbar { width: 9px; }
 .annot-list::-webkit-scrollbar-thumb, .modal-body::-webkit-scrollbar-thumb { background: rgba(120,120,120,0.35); border-radius: 9px; }
+
+/* ============================================================
+   KEYBOARD SHORTCUT HUD
+   Hold ⌘ to show: badges float above/below each button,
+   plus a floating cheatsheet panel for non-button shortcuts.
+   ============================================================ */
+
+/* Badge on any element that has data-shortcut */
+body.shortcuts-visible [data-shortcut] { position: relative; }
+body.shortcuts-visible [data-shortcut]::after {
+  content: attr(data-shortcut);
+  position: absolute;
+  bottom: calc(100% + 5px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--text);
+  color: var(--bg);
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  padding: 2px 6px;
+  border-radius: 4px;
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 10003;
+  animation: kbs-badge-in .12s ease both;
+}
+/* Topbar seg buttons: badge drops below so it stays inside the viewport */
+.topbar [data-shortcut]::after {
+  bottom: auto;
+  top: calc(100% + 5px);
+}
+@keyframes kbs-badge-in {
+  from { opacity: 0; transform: translateX(-50%) translateY(3px); }
+  to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+
+/* Floating cheatsheet panel */
+.kbs-panel {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%) translateY(6px);
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 11px 15px;
+  box-shadow: 0 14px 42px rgba(0,0,0,.2);
+  font-size: 12.5px;
+  z-index: 10003;
+  min-width: 250px;
+  visibility: hidden;
+  opacity: 0;
+  transition: opacity .14s ease, transform .14s ease, visibility .14s;
+  user-select: none;
+}
+body.shortcuts-visible .kbs-panel {
+  visibility: visible;
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+.kbs-panel h4 {
+  margin: 0 0 7px;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .09em;
+  color: var(--faint);
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+}
+.kbs-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 20px;
+  padding: 3px 0;
+  color: var(--dim);
+}
+.kbs-sep { height: 1px; background: var(--border); margin: 5px 0; }
+.kbs-keys {
+  display: flex;
+  gap: 2px;
+  align-items: center;
+  flex-shrink: 0;
+}
+.kbs-keys kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 18px;
+  padding: 0 4px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-bottom-width: 2px;
+  border-radius: 3px;
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 11px;
+  color: var(--text);
+  white-space: nowrap;
+}

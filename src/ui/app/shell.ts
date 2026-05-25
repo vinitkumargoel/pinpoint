@@ -1,7 +1,7 @@
 import type { Mode } from "./types";
 import { CFG } from "./config";
 import { state, ctx, persist } from "./state";
-import { activeDoc } from "./dom";
+import { activeDoc, updateFinalizeButtons } from "./dom";
 import { onFrameLoad, reapply, reapplyActive } from "./iframe";
 import { render } from "./sidebar";
 import { hideHover } from "./hover";
@@ -14,13 +14,13 @@ const CHROME = `
   <header class="topbar">
     <div class="brand">Pin<b>point</b></div>
     <div class="seg">
-      <button data-role="mode-inspect" class="on">&#8982; Inspect</button>
-      <button data-role="mode-browse">&#8599; Browse</button>
+      <button data-role="mode-inspect" class="on" data-shortcut="I">&#8982; Inspect</button>
+      <button data-role="mode-browse" data-shortcut="B">&#8599; Browse</button>
     </div>
     <div class="file-name" data-role="file-name" title=""></div>
     <div class="spacer"></div>
     <div class="counts" data-role="counts">0 annotations</div>
-    <button type="button" class="btn ghost theme-toggle" data-role="theme-toggle" title="Toggle light / dark theme" aria-label="Toggle light or dark theme"><span data-role="theme-icon">&#127769;</span></button>
+    <button type="button" class="btn ghost theme-toggle" data-role="theme-toggle" data-shortcut="T" title="Toggle light / dark theme" aria-label="Toggle light or dark theme"><span data-role="theme-icon">&#127769;</span></button>
   </header>
   <div class="canvas" data-role="canvas">
     <div class="frame-wrap">
@@ -37,10 +37,10 @@ const CHROME = `
     </div>
     <div class="annot-list" data-role="annot-list"></div>
     <div class="panel-foot">
-      <button class="btn ghost" data-role="clear-all">Clear</button>
+      <button class="btn ghost" data-role="clear-all" data-shortcut="⌘⇧X">Clear</button>
       <div class="spacer"></div>
-      <button class="btn" data-role="finalize-approve">Approve</button>
-      <button class="btn primary" data-role="finalize-send">Send Feedback</button>
+      <button class="btn" data-role="finalize-approve" data-shortcut="⌘↵">Approve</button>
+      <button class="btn primary" data-role="finalize-send" data-shortcut="⌘↵">Send Feedback</button>
     </div>
   </aside>`;
 
@@ -80,6 +80,7 @@ function wireShell(dir: string): void {
   s.querySelector('[data-role="global-comment"]')?.addEventListener("input", (e) => {
     state.globalComment = (e.target as HTMLTextAreaElement).value;
     persist();
+    updateFinalizeButtons();
   });
   s.querySelector('[data-role="clear-all"]')?.addEventListener("click", () => void clearAll());
   s.querySelector('[data-role="finalize-approve"]')?.addEventListener("click", () => void onApprove());
