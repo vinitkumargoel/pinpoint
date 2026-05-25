@@ -9,14 +9,32 @@ allowed-tools: Bash(pinpoint:*)
 
 ## Your task
 
-The output above is the result of a Pinpoint visual review.
+The output above is the result of a Pinpoint visual review. Act on it as follows:
 
-- Use `/pinpoint <path/to/file.html|file.md>` when the user wants to review a file on disk.
-- Use `/pinpoint browser` when the user wants to review a page already open in Chrome. Tell the user to open the Pinpoint Chrome extension on the target tab and click **Start**. The extension stays idle until Start; **Stop** discards the browser-review draft and sends nothing.
+**`# UI Feedback` (file review)** — implement the requested changes to the file at the path
+in the `**File:**` line. Each annotation includes a CSS selector, element HTML context, and
+the user's comment — use them to locate the target precisely. For Markdown files, the
+selector points into the rendered HTML, so use the element's quoted text to find the
+matching spot in the `.md` source. Make the edits, then briefly summarize what changed.
 
-When the command returns:
+**`# Browser UI Feedback` (browser review)** — implement the requested changes in the code
+that produces the reviewed page. The brief includes:
+- `**Screenshot:** /path/page-screenshot.png` — page-level overview of the viewport at send
+  time; use for overall layout context.
+- Per-annotation entries, each with a CSS selector, visible text, HTML context, comment, and
+  `**Screenshot:** /path/annotation-N-screenshot.png` — a focused capture taken by scrolling
+  to that specific element. Use these per-annotation screenshots to understand the exact
+  visual state of each annotated element, especially elements that were off-screen in the
+  page overview. Make the edits, then briefly summarize what changed.
 
-- If it is a **file feedback brief** (a `# UI Feedback` markdown document with annotations and/or a page-wide note), implement the requested changes to the file at the path shown in the brief's `**File:**` line. Use each annotation's CSS selector and element context to locate the target precisely. For Markdown files the selector points into the *rendered* HTML, so use the element's quoted text to find the matching spot in the `.md` source. Make the edits, then briefly summarize what you changed.
-- If it is a **browser feedback brief** (a `# Browser UI Feedback` markdown document), use the page URL/title, screenshot reference, selectors, HTML context, and comments to update the relevant code for the live page the user reviewed. The screenshot is captured when the user clicks **Send Feedback** and should be used for visual/layout context.
-- If it says **"✅ Approved"**, the user approved the page with no changes — acknowledge and make no edits.
-- If it says **"Review window closed — no feedback submitted"** or **"Browser session canceled — no feedback submitted"**, the user ended the review without submitting — acknowledge and make no edits.
+**`✅ Approved`** — the user approved with no changes; acknowledge and make no edits.
+
+**`Review window closed`** or **`Browser session canceled`** — the user ended the review
+without submitting; acknowledge and make no edits.
+
+---
+
+Usage hints:
+- `/pinpoint <path/to/file.html|file.md>` — file review
+- `/pinpoint browser` — browser review (then tell the user to open the Chrome extension on
+  the target tab and click **Start**; **Stop** discards the draft and sends nothing)
