@@ -96,14 +96,18 @@ export function buildBrowserFeedbackPayload(page, draft, screenshot) {
       note: String(draft?.pageNote || ""),
     },
     annotations: Array.isArray(draft?.annotations)
-      ? draft.annotations.map((annotation) => ({
-          id: annotation.id,
-          selector: annotation.selector,
-          tag: annotation.tag,
-          text: annotation.text,
-          outerHTML: annotation.outerHTML,
-          comment: annotation.comment || "",
-        }))
+      ? draft.annotations.map((annotation) => {
+          const entry = {
+            id: annotation.id,
+            selector: annotation.selector,
+            tag: annotation.tag,
+            text: annotation.text,
+            outerHTML: annotation.outerHTML,
+            comment: annotation.comment || "",
+          };
+          if (annotation.screenshot) entry.screenshot = annotation.screenshot;
+          return entry;
+        })
       : [],
   };
   if (screenshot) payload.screenshot = screenshot;
@@ -132,6 +136,7 @@ export class ExtensionSessionMachine {
       deleteAnnotation: deps.deleteAnnotation || (async () => null),
       clearAnnotations: deps.clearAnnotations || (async () => null),
       locateAnnotation: deps.locateAnnotation || (async () => ({ found: false, state: null })),
+      captureAnnotationScreenshot: deps.captureAnnotationScreenshot || (async () => null),
       wait: deps.wait || sleep,
     };
     this.retryCount = options.retryCount ?? DEFAULT_RETRY_COUNT;
@@ -339,19 +344,41 @@ export class ExtensionSessionMachine {
       const contentState = await this.deps.getContentState(this.state.activeTabId);
       const draft = this.draftFromContentState(contentState);
       const page = await this.deps.getPageMetadata(this.state.activeTabId);
-      let screenshot;
+
+      // Page-level overview screenshot (current viewport, before any scrolling).
+      let pageScreenshot;
       try {
-        screenshot = await this.deps.captureScreenshot(this.state.activeTabId);
+        pageScreenshot = await this.deps.captureScreenshot(this.state.activeTabId);
       } catch (error) {
-        screenshot = {
+        pageScreenshot = {
           unavailable: true,
           capturedAt: new Date().toISOString(),
           error: shortError(error),
         };
       }
+
+      // Per-annotation screenshots: scroll each element into view, then capture.
+      // Must be serial — each scroll+capture pair must complete before the next starts.
+      const annotationsWithScreenshots = [];
+      for (const annotation of draft.annotations) {
+        let annotationScreenshot = null;
+        try {
+          annotationScreenshot = await this.deps.captureAnnotationScreenshot(
+            this.state.activeTabId,
+            annotation.id,
+          );
+        } catch {
+          // Screenshot is best-effort; missing one doesn't block sending.
+        }
+        annotationsWithScreenshots.push(
+          annotationScreenshot ? { ...annotation, screenshot: annotationScreenshot } : annotation,
+        );
+      }
+      draft.annotations = annotationsWithScreenshots;
+
       await this.deps.finalize(this.state.session, {
         action: "feedback",
-        ...buildBrowserFeedbackPayload(page, draft, screenshot),
+        ...buildBrowserFeedbackPayload(page, draft, pageScreenshot),
       });
       return this.finishConnectedSession("Feedback sent.");
     } catch (error) {

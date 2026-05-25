@@ -133,7 +133,7 @@ describe("browser review end-to-end smoke", () => {
       expect(stdout).toContain("**Visible text:** Save changes");
       expect(stdout).toContain("**Comment:** Make the save action more specific.");
 
-      const screenshotPath = stdout.match(/\*\*Screenshot:\*\* (.+visible-tab-screenshot\.png)/)?.[1];
+      const screenshotPath = stdout.match(/\*\*Screenshot:\*\* (.+page-screenshot\.png)/)?.[1];
       expect(screenshotPath).toStartWith(artifactRoot);
       expect(await readFile(screenshotPath!)).toEqual(Buffer.from("iVBORw0KGgo=", "base64"));
     } finally {

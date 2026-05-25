@@ -79,6 +79,11 @@ function handleMessage(message, _sender, sendResponse) {
         sendResponse({ ok: true, ...result });
         return;
       }
+      if (message.type === "scroll-to-annotation") {
+        const result = controller.scrollToAnnotation(message.id);
+        sendResponse({ ok: true, ...result });
+        return;
+      }
 
       sendResponse({ ok: false, error: "unknown_message" });
     } catch (error) {

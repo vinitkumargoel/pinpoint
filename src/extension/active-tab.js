@@ -48,6 +48,22 @@ export async function getActiveTabPageMetadata(tabId, api = chromeApi()) {
   return response.page || { url: "", title: "" };
 }
 
+export async function captureAnnotationScreenshot(tabId, id, api = chromeApi()) {
+  if (typeof tabId !== "number") throw new Error("active_tab_unavailable");
+  // Scroll the annotated element to the center of the viewport without animation.
+  await sendPinpointMessage(tabId, { type: "scroll-to-annotation", id }, api);
+  // Let the browser repaint after the instant scroll before we capture.
+  await new Promise((r) => setTimeout(r, 350));
+  const capturedAt = new Date().toISOString();
+  const tab = await api.tabs.get(tabId);
+  const windowId = typeof tab?.windowId === "number" ? tab.windowId : undefined;
+  const dataUrl = await api.tabs.captureVisibleTab(windowId, { format: "png" });
+  if (typeof dataUrl !== "string" || !dataUrl.startsWith("data:image/")) {
+    throw new Error("invalid_screenshot_data");
+  }
+  return { dataUrl, mimeType: "image/png", capturedAt };
+}
+
 export async function captureActiveTabVisibleScreenshot(tabId, api = chromeApi()) {
   const capturedAt = new Date().toISOString();
   try {

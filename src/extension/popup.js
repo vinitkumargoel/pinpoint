@@ -17,6 +17,7 @@ const machine = new ExtensionSessionMachine({
   getContentState: (tabId) => bg("pinpoint-get-state", { tabId }),
   getPageMetadata: (tabId) => bg("pinpoint-page-metadata", { tabId }),
   captureScreenshot: (tabId) => bg("pinpoint-screenshot", { tabId }),
+  captureAnnotationScreenshot: (tabId, id) => bg("pinpoint-screenshot-annotation", { tabId, id }),
   updateComment: (tabId, id, comment) => bg("pinpoint-update-comment", { tabId, id, comment }),
   deleteAnnotation: (tabId, id) => bg("pinpoint-delete", { tabId, id }),
   clearAnnotations: (tabId) => bg("pinpoint-clear", { tabId }),

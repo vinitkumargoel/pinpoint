@@ -217,6 +217,17 @@ export function createAnnotationLayer(doc = document, win = window, options = {}
     return { found: true, state: snapshot() };
   }
 
+  // Instantly scrolls the annotated element into view (no flash) — used before screenshot capture.
+  function scrollToAnnotation(id) {
+    const annotation = annotations.find((item) => item.id === id);
+    const element = annotation ? doc.querySelector(annotation.selector) : null;
+    if (!element) return { found: false };
+    if (typeof element.scrollIntoView === "function") {
+      element.scrollIntoView({ block: "center", inline: "center", behavior: "instant" });
+    }
+    return { found: true };
+  }
+
   function onMouseOver(event) {
     if (mode !== "inspect") return;
     const target = event.target;
@@ -288,6 +299,7 @@ export function createAnnotationLayer(doc = document, win = window, options = {}
     removeAnnotation,
     clearAnnotations,
     locateAnnotation,
+    scrollToAnnotation,
     getState: snapshot,
   };
 }

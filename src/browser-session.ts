@@ -51,6 +51,7 @@ export interface BrowserFeedbackAnnotation {
   outerHTML?: string;
   htmlContext?: string;
   comment?: string;
+  screenshot?: BrowserFeedbackScreenshot;
 }
 
 export interface BrowserFeedbackScreenshot {
@@ -194,7 +195,7 @@ function parseImageDataUrl(dataUrl: string): { mimeType: string; bytes: Buffer }
 
 async function normalizeScreenshot(
   value: unknown,
-  opts: { artifactRoot: string; sessionId: string },
+  opts: { artifactRoot: string; sessionId: string; filename?: string },
 ): Promise<BrowserFeedbackScreenshot | undefined> {
   const screenshot = asRecord(value);
   if (Object.keys(screenshot).length === 0) return undefined;
@@ -220,7 +221,8 @@ async function normalizeScreenshot(
   }
 
   const dir = join(opts.artifactRoot, opts.sessionId);
-  const artifactPath = join(dir, `visible-tab-screenshot.${screenshotExt(parsed.mimeType)}`);
+  const filename = opts.filename ?? "page-screenshot";
+  const artifactPath = join(dir, `${filename}.${screenshotExt(parsed.mimeType)}`);
   try {
     await mkdir(dir, { recursive: true });
     await writeFile(artifactPath, parsed.bytes);
@@ -253,15 +255,27 @@ async function normalizeBrowserFeedback(
       ? data.annotations
       : [];
 
+  const annotations: BrowserFeedbackAnnotation[] = await Promise.all(
+    annotationsSource.map(async (raw, i) => {
+      const base = normalizeAnnotation(raw);
+      const annotationScreenshot = await normalizeScreenshot(asRecord(raw).screenshot, {
+        ...opts,
+        filename: `annotation-${i + 1}-screenshot`,
+      });
+      if (annotationScreenshot) base.screenshot = annotationScreenshot;
+      return base;
+    }),
+  );
+
   return {
     page: {
       url: text(page.url) || text(feedback.pageUrl) || text(data.pageUrl) || undefined,
       title: text(page.title) || text(feedback.pageTitle) || text(data.pageTitle) || undefined,
       note: text(page.note) || text(feedback.pageNote) || text(data.pageNote) || undefined,
     },
-    annotations: annotationsSource.map(normalizeAnnotation),
+    annotations,
     brief: text(feedback.brief) || text(data.brief) || undefined,
-    screenshot: await normalizeScreenshot(screenshotSource, opts),
+    screenshot: await normalizeScreenshot(screenshotSource, { ...opts, filename: "page-screenshot" }),
   };
 }
 
@@ -326,6 +340,7 @@ export function formatBrowserFeedbackBrief(feedback: string | BrowserFeedbackPay
       pushMarkdownField(lines, "Visible text", annotation.text, "_(empty)_");
       pushMarkdownField(lines, "HTML context", htmlContext);
       pushMarkdownField(lines, "Comment", annotation.comment, "_(no comment)_");
+      pushScreenshotField(lines, annotation.screenshot);
       if (index < annotations.length - 1) lines.push("");
     });
     return lines.join("\n");

@@ -179,7 +179,7 @@ describe("browser session server", () => {
         mimeType: "image/png",
         capturedAt: "2026-05-24T12:00:00.000Z",
       });
-      expect(artifactPath).toBe(join(artifactRoot, session.id, "visible-tab-screenshot.png"));
+      expect(artifactPath).toBe(join(artifactRoot, session.id, "page-screenshot.png"));
       expect(await readFile(artifactPath!)).toEqual(Buffer.from("iVBORw0KGgo=", "base64"));
       expect(formatBrowserFeedbackBrief(result.feedback)).toContain(`**Screenshot:** ${artifactPath}`);
     } finally {
