@@ -53,7 +53,7 @@ export async function captureAnnotationScreenshot(tabId, id, api = chromeApi()) 
   // Scroll the annotated element to the center of the viewport without animation.
   await sendPinpointMessage(tabId, { type: "scroll-to-annotation", id }, api);
   // Let the browser repaint after the instant scroll before we capture.
-  await new Promise((r) => setTimeout(r, 350));
+  await new Promise((r) => setTimeout(r, 500));
   const capturedAt = new Date().toISOString();
   const tab = await api.tabs.get(tabId);
   const windowId = typeof tab?.windowId === "number" ? tab.windowId : undefined;

@@ -358,9 +358,12 @@ export class ExtensionSessionMachine {
       }
 
       // Per-annotation screenshots: scroll each element into view, then capture.
-      // Must be serial — each scroll+capture pair must complete before the next starts.
+      // Must be serial — each scroll+capture pair must complete before the next.
+      // The 200 ms gap between captures avoids Chrome throttling captureVisibleTab.
       const annotationsWithScreenshots = [];
-      for (const annotation of draft.annotations) {
+      for (let i = 0; i < draft.annotations.length; i++) {
+        const annotation = draft.annotations[i];
+        if (i > 0) await new Promise((r) => setTimeout(r, 200));
         let annotationScreenshot = null;
         try {
           annotationScreenshot = await this.deps.captureAnnotationScreenshot(
