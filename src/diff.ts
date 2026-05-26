@@ -3,10 +3,15 @@
  * an HTML page that the existing Pinpoint annotator can iframe.
  *
  * Each line carries `data-file`, `data-old-line`, `data-new-line`, `data-kind`,
- * and a unique `id` so the annotator's selector generator picks the `#id` path
- * — that means every annotation's element HTML carries the file/line metadata
- * verbatim, no annotator changes required.
+ * and a `data-line-key` so the annotator can tag every view-copy (split-left /
+ * split-right / unified) of a logical line from one annotation.
+ *
+ * The page's interactive behaviour (drag-to-range, view/jump/theme message
+ * routing) lives in `src/diff-runtime/` — bundled by `scripts/build-ui.ts` and
+ * text-imported below.
  */
+import diffRuntimeJs from "./diff-runtime/runtime.bundle.js" with { type: "text" };
+const DIFF_RUNTIME = diffRuntimeJs as unknown as string;
 
 export type LineKind = "ctx" | "add" | "del";
 
@@ -459,161 +464,7 @@ export function renderDiffPage(files: DiffFile[], opts: RenderOptions = {}): str
   ${fileSections}
 </main>
 <script>
-(function () {
-  // The diff page is iframed by the review shell. The shell drives view mode,
-  // jumps, and per-file collapse over postMessage; the page handles its own
-  // chevron, gutter-"+" clicks, and drag-to-range selection, then posts the
-  // resulting annotation back up to the parent.
-  var body = document.body;
-  function setView(v) {
-    if (v !== "split" && v !== "unified") return;
-    body.setAttribute("data-view", v);
-  }
-  document.querySelectorAll("section.file .chevron").forEach(function (ch) {
-    ch.addEventListener("click", function (e) {
-      e.stopPropagation();
-      ch.closest("section.file").classList.toggle("collapsed");
-    });
-  });
-
-  // --- Range-annotation interaction ----------------------------------------
-  // Mousedown on a line's "+" button starts a range; mouseover on lines in the
-  // same view + same side extends; mouseup posts a {review:annotate} message.
-  var dragStart = null; // { lineEl, viewEl, side, allLines: Element[] }
-  var ranged = [];      // currently highlighted line elements
-  function viewOf(el) { return el && (el.closest(".hunk-split") || el.closest(".hunk-unified")); }
-  function sideOf(el) { return el && el.dataset ? (el.dataset.side || "") : ""; }
-  function annotatable(el) {
-    return el && el.classList && el.classList.contains("line") && !el.classList.contains("blank") && el.dataset.file;
-  }
-  function clearRange() {
-    ranged.forEach(function (l) { l.classList.remove("range-selecting", "range-start"); });
-    ranged = [];
-  }
-  function setRange(lines) {
-    clearRange();
-    ranged = lines;
-    ranged.forEach(function (l) { l.classList.add("range-selecting"); });
-    // The "+" stays visible only on the line the user mousedowned on; everything
-    // else is hidden so we don't litter the diff with + icons during a drag.
-    if (dragStart && dragStart.lineEl && ranged.indexOf(dragStart.lineEl) !== -1) {
-      dragStart.lineEl.classList.add("range-start");
-    }
-  }
-  function siblings(viewEl, startEl) {
-    // All annotatable lines in the same view + same side as startEl, in order.
-    var startSide = sideOf(startEl);
-    var nodes = Array.prototype.slice.call(viewEl.querySelectorAll(".line"));
-    return nodes.filter(function (l) { return annotatable(l) && sideOf(l) === startSide; });
-  }
-  document.addEventListener("mousedown", function (e) {
-    var t = e.target;
-    if (!t || !t.classList || !t.classList.contains("line-mark")) return;
-    var line = t.closest(".line");
-    if (!annotatable(line)) return;
-    e.preventDefault();
-    var v = viewOf(line);
-    if (!v) return;
-    dragStart = { lineEl: line, viewEl: v, side: sideOf(line), allLines: siblings(v, line) };
-    setRange([line]);
-  }, true);
-  document.addEventListener("mouseover", function (e) {
-    if (!dragStart) return;
-    var line = e.target && e.target.closest ? e.target.closest(".line") : null;
-    if (!annotatable(line)) return;
-    if (viewOf(line) !== dragStart.viewEl) return;
-    if (sideOf(line) !== dragStart.side) return;
-    var startIdx = dragStart.allLines.indexOf(dragStart.lineEl);
-    var curIdx = dragStart.allLines.indexOf(line);
-    if (startIdx < 0 || curIdx < 0) return;
-    var lo = Math.min(startIdx, curIdx);
-    var hi = Math.max(startIdx, curIdx);
-    setRange(dragStart.allLines.slice(lo, hi + 1));
-  }, true);
-  document.addEventListener("mouseup", function () {
-    if (!dragStart) return;
-    var lines = ranged.slice();
-    clearRange();
-    var start = dragStart;
-    dragStart = null;
-    if (!lines.length) return;
-    // Sort by document order in case the drag was upward.
-    lines.sort(function (a, b) {
-      var pos = a.compareDocumentPosition(b);
-      if (pos & Node.DOCUMENT_POSITION_FOLLOWING) return -1;
-      if (pos & Node.DOCUMENT_POSITION_PRECEDING) return 1;
-      return 0;
-    });
-    var payload = {
-      file: start.lineEl.dataset.file,
-      lineKeys: lines.map(function (l) { return l.dataset.lineKey; }),
-      lines: lines.map(function (l) {
-        var code = l.querySelector(".code");
-        return {
-          lineKey: l.dataset.lineKey,
-          oldLine: l.dataset.oldLine === "" ? null : parseInt(l.dataset.oldLine, 10),
-          newLine: l.dataset.newLine === "" ? null : parseInt(l.dataset.newLine, 10),
-          kind: l.dataset.kind,
-          text: code ? code.textContent.replace(/\\s+$/, "") : "",
-        };
-      }),
-    };
-    try { window.parent.postMessage({ type: "review:annotate", payload: payload }, "*"); } catch (e) {}
-  }, true);
-
-  function setTheme(v) {
-    if (v !== "light" && v !== "dark") return;
-    body.setAttribute("data-theme", v);
-  }
-  // Boot with whatever the parent persisted — light by default.
-  setTheme("light");
-
-  window.addEventListener("message", function (e) {
-    var d = e.data;
-    if (!d || typeof d !== "object") return;
-    if (d.type === "review:view") setView(d.value);
-    else if (d.type === "review:theme") setTheme(d.value);
-    else if (d.type === "review:jump") {
-      if (d.target === "file") jumpFile(d.dir);
-      else if (d.target === "change") jumpChange(d.dir);
-    }
-    else if (d.type === "review:expand-all") {
-      document.querySelectorAll("section.file").forEach(function (s) { s.classList.remove("collapsed"); });
-    }
-    else if (d.type === "review:collapse-all") {
-      document.querySelectorAll("section.file").forEach(function (s) { s.classList.add("collapsed"); });
-    }
-    else if (d.type === "review:scroll-to-file") {
-      var el = document.getElementById(d.id);
-      if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
-    }
-  });
-
-  function jumpFile(dir) {
-    var files = Array.from(document.querySelectorAll("section.file"));
-    if (!files.length) return;
-    var top = window.scrollY + 60;
-    var idx = 0;
-    for (var i = 0; i < files.length; i++) {
-      if (files[i].offsetTop <= top) idx = i;
-    }
-    var next = Math.max(0, Math.min(files.length - 1, idx + dir));
-    files[next].scrollIntoView({ behavior: "smooth", block: "start" });
-  }
-  function jumpChange(dir) {
-    var view = body.getAttribute("data-view");
-    var sel = view === "split" ? ".hunk-split .line.add, .hunk-split .line.del" : ".hunk-unified .line.add, .hunk-unified .line.del";
-    var lines = Array.from(document.querySelectorAll(sel));
-    if (!lines.length) return;
-    var top = window.scrollY + 80;
-    var idx = -1;
-    for (var i = 0; i < lines.length; i++) {
-      if (lines[i].getBoundingClientRect().top + window.scrollY < top) idx = i;
-    }
-    var next = Math.max(0, Math.min(lines.length - 1, idx + dir));
-    lines[next].scrollIntoView({ behavior: "smooth", block: "center" });
-  }
-})();
+${DIFF_RUNTIME}
 </script>
 </body>
 </html>`;
