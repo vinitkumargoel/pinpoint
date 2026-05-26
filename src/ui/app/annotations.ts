@@ -1,15 +1,18 @@
 import type { Annotation, ReviewAnchor, ReviewAnchorLine } from "./types";
 import { state, ctx, persist } from "./state";
-import { CFG } from "./config";
 import { getSelector, shortOuter } from "./selector";
 import { reapplyActive } from "./iframe";
 import { render } from "./sidebar";
 import { updateFinalizeButtons } from "./dom";
 import { confirmDialog, toast } from "./dialog";
+import type { AnnotatePayload } from "../../review-protocol.ts";
 
-/** Create an annotation for a clicked element (file/markdown review mode). */
+/**
+ * Create an annotation for a clicked element. Only wired in file mode — review
+ * mode never calls this, because the diff page emits ranges via postMessage
+ * instead (see `addReviewRangeAnnotation`).
+ */
 export function addAnnotation(el: Element): void {
-  if (CFG.kind === "review") return; // review uses addReviewRangeAnnotation via postMessage
   pruneEmpty();
   const annot: Annotation = {
     id: "a_" + Date.now() + "_" + Math.random().toString(36).slice(2, 7),
@@ -37,24 +40,11 @@ export function addAnnotation(el: Element): void {
 /**
  * Create a review annotation from a range posted by the diff iframe.
  *
- * The diff page picks the first matching DOM line for the badge selector;
- * `lineKeys` carries every line in the range so `iframe.reapply` can tag both
- * the split and unified copies of each line.
+ * The payload shape is defined by `review-protocol`; both the iframe runtime
+ * and this consumer import the same `AnnotatePayload` type so the postMessage
+ * boundary is type-safe end-to-end.
  */
-export interface ReviewRangePayload {
-  file: string;
-  lineKeys: string[];
-  lines: Array<{
-    oldLine: number | null;
-    newLine: number | null;
-    kind: "add" | "del" | "ctx";
-    text: string;
-    lineKey: string;
-  }>;
-}
-
-export function addReviewRangeAnnotation(payload: ReviewRangePayload): void {
-  if (CFG.kind !== "review") return;
+export function addReviewRangeAnnotation(payload: AnnotatePayload): void {
   if (!payload.lines.length) return;
   pruneEmpty();
 

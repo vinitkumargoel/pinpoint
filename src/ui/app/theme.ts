@@ -1,5 +1,6 @@
 import { state, persist, ctx } from "./state";
 import { CFG } from "./config";
+import { themeMsg } from "../../review-protocol.ts";
 
 /** Apply the current theme to the document and refresh the toggle's icon/title. */
 export function applyTheme(): void {
@@ -15,9 +16,10 @@ export function applyTheme(): void {
 
 /** Push the current theme into every review iframe so its diff swaps colors with the app. */
 export function broadcastThemeToFrames(): void {
+  const msg = themeMsg(state.theme);
   Object.values(ctx.shells).forEach((shell) => {
     try {
-      shell.iframe.contentWindow?.postMessage({ type: "review:theme", value: state.theme }, "*");
+      shell.iframe.contentWindow?.postMessage(msg, "*");
     } catch {
       /* ignore */
     }

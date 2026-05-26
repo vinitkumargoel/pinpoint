@@ -5,6 +5,7 @@ import { showHover, posHover, hideHover } from "./hover";
 import { addAnnotation, addReviewRangeAnnotation } from "./annotations";
 import { render } from "./sidebar";
 import { broadcastThemeToFrames } from "./theme";
+import { subscribeReviewMessages, viewMsg } from "../../review-protocol.ts";
 
 const VIEW_LS_KEY = "pinpoint:review:view";
 
@@ -42,18 +43,11 @@ let reviewListenerInstalled = false;
 export function installReviewMessageListener(): void {
   if (reviewListenerInstalled) return;
   reviewListenerInstalled = true;
-  window.addEventListener("message", (e) => {
-    const d = e.data as { type?: string; payload?: unknown } | null;
-    if (!d || typeof d !== "object" || d.type !== "review:annotate") return;
-    const payload = d.payload as
-      | {
-          file?: string;
-          lineKeys?: string[];
-          lines?: Array<{ oldLine: number | null; newLine: number | null; kind: "add" | "del" | "ctx"; text: string; lineKey: string }>;
-        }
-      | undefined;
-    if (!payload || !payload.file || !Array.isArray(payload.lines) || !payload.lines.length) return;
-    addReviewRangeAnnotation(payload as Parameters<typeof addReviewRangeAnnotation>[0]);
+  subscribeReviewMessages(window, (msg) => {
+    if (msg.type !== "review:annotate") return;
+    const { payload } = msg;
+    if (!payload.file || !payload.lines.length) return;
+    addReviewRangeAnnotation(payload);
   });
 }
 
@@ -69,7 +63,7 @@ function syncReviewViewToFrame(iframe: HTMLIFrameElement): void {
   } catch {
     /* ignore */
   }
-  iframe.contentWindow?.postMessage({ type: "review:view", value: v }, "*");
+  iframe.contentWindow?.postMessage(viewMsg(v), "*");
 }
 
 /** Inject the hover/badge/selection styles into the user's document. */
