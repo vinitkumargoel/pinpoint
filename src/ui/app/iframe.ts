@@ -1,9 +1,12 @@
 import { ctx, state } from "./state";
-import { DIRS } from "./config";
+import { CFG, DIRS } from "./config";
 import { activeDoc } from "./dom";
 import { showHover, posHover, hideHover } from "./hover";
-import { addAnnotation } from "./annotations";
+import { addAnnotation, addReviewRangeAnnotation } from "./annotations";
 import { render } from "./sidebar";
+import { broadcastThemeToFrames } from "./theme";
+
+const VIEW_LS_KEY = "pinpoint:review:view";
 
 /** Called when a shell's iframe finishes loading the user's file. */
 export function onFrameLoad(dir: string): void {
@@ -17,10 +20,56 @@ export function onFrameLoad(dir: string): void {
   }
   if (!doc) return;
   injectOverlay(doc, dir);
-  attachHandlers(doc, dir);
-  doc.body.classList.toggle("__pp-inspect", state.mode === "inspect");
-  reapply(doc);
+  if (CFG.kind === "review") {
+    // No crosshair body class, no click-to-annotate handler — the diff page
+    // owns the interaction (hover line → `+` button → click or drag).
+    reapply(doc);
+    syncReviewViewToFrame(shell.iframe);
+    broadcastThemeToFrames();
+  } else {
+    attachHandlers(doc, dir);
+    doc.body.classList.toggle("__pp-inspect", state.mode === "inspect");
+    reapply(doc);
+  }
   if (ctx.active && ctx.active.dataset.dir === dir) render();
+}
+
+/**
+ * Listen for the diff page's `review:annotate` postMessages and turn each into
+ * an Annotation. Registered once at boot; safe to call multiple times.
+ */
+let reviewListenerInstalled = false;
+export function installReviewMessageListener(): void {
+  if (reviewListenerInstalled) return;
+  reviewListenerInstalled = true;
+  window.addEventListener("message", (e) => {
+    const d = e.data as { type?: string; payload?: unknown } | null;
+    if (!d || typeof d !== "object" || d.type !== "review:annotate") return;
+    const payload = d.payload as
+      | {
+          file?: string;
+          lineKeys?: string[];
+          lines?: Array<{ oldLine: number | null; newLine: number | null; kind: "add" | "del" | "ctx"; text: string; lineKey: string }>;
+        }
+      | undefined;
+    if (!payload || !payload.file || !Array.isArray(payload.lines) || !payload.lines.length) return;
+    addReviewRangeAnnotation(payload as Parameters<typeof addReviewRangeAnnotation>[0]);
+  });
+}
+
+/**
+ * After the diff iframe loads, push the user's saved view preference (split/unified)
+ * — the iframe boots with its hardcoded default, which may not match what we stored.
+ */
+function syncReviewViewToFrame(iframe: HTMLIFrameElement): void {
+  let v: "split" | "unified" = "split";
+  try {
+    const saved = localStorage.getItem(VIEW_LS_KEY);
+    if (saved === "split" || saved === "unified") v = saved;
+  } catch {
+    /* ignore */
+  }
+  iframe.contentWindow?.postMessage({ type: "review:view", value: v }, "*");
 }
 
 /** Inject the hover/badge/selection styles into the user's document. */
@@ -32,12 +81,19 @@ export function injectOverlay(doc: Document, dir: string): void {
   doc.getElementById("__pp-styles")?.remove();
   const style = doc.createElement("style");
   style.id = "__pp-styles";
+  // Treat review ranges (multi-line annotations) differently from element-anchored
+  // file annotations: ranges already span N rows, so the heavy dashed-outline +
+  // solid-selected-outline of the file annotator stacks into a wall of black
+  // borders. For ranges we use a subtle inset left bar + tint, and skip the per-
+  // line outline.
   style.textContent = `
     .__pp-hover { outline: 2px solid ${c.accent} !important; outline-offset: -2px !important; cursor: crosshair !important; background-color: ${c.tint} !important; }
-    .__pp-tagged { outline: 2px dashed ${c.accent} !important; outline-offset: -2px !important; position: relative !important; }
+    .__pp-tagged:not(.__pp-range) { outline: 2px dashed ${c.accent} !important; outline-offset: -2px !important; position: relative !important; }
+    .__pp-tagged.__pp-range { position: relative !important; }
     .__pp-tagged::before {
       content: "${pre}" attr(data-pp-num) "${suf}" !important;
-      position: absolute !important; top: -10px !important; left: -10px !important;
+      position: absolute !important; top: 50% !important; left: 24px !important;
+      transform: translateY(-50%) !important;
       min-width: 20px !important; height: 20px !important; padding: 0 5px !important;
       background: ${c.accent} !important; color: ${c.badgeText} !important;
       font: 700 11px/20px ui-monospace, monospace !important;
@@ -46,7 +102,17 @@ export function injectOverlay(doc: Document, dir: string): void {
       z-index: 99999 !important; box-shadow: 0 0 0 2px #fff, 0 2px 6px rgba(0,0,0,0.28) !important;
       pointer-events: none !important;
     }
-    .__pp-selected { outline: 3px solid ${c.accent} !important; outline-offset: -3px !important; }
+    .__pp-selected:not(.__pp-range) { outline: 3px solid ${c.accent} !important; outline-offset: -3px !important; }
+    /* Multi-line ranges: left-edge marker + soft background tint per line. No
+       per-line top/bottom/right border — that stacks into a wall of bars on
+       adjacent lines. Selection just deepens the tint. */
+    .__pp-range {
+      box-shadow: inset 3px 0 0 ${c.accent} !important;
+      background-image: linear-gradient(0deg, ${c.tint}, ${c.tint}) !important;
+    }
+    .__pp-range.__pp-selected {
+      background-image: linear-gradient(0deg, rgba(24,24,27,0.12), rgba(24,24,27,0.12)) !important;
+    }
     body.__pp-inspect, body.__pp-inspect * { cursor: crosshair !important; }
   `;
   doc.head.appendChild(style);
@@ -109,11 +175,32 @@ export function attachHandlers(doc: Document, dir: string): void {
 /** (Re)draw the numbered badges + selection outline inside a document. */
 export function reapply(doc: Document | null): void {
   if (!doc) return;
-  doc.querySelectorAll(".__pp-tagged, .__pp-selected").forEach((el) => {
-    el.classList.remove("__pp-tagged", "__pp-selected");
+  doc.querySelectorAll(".__pp-tagged, .__pp-selected, .__pp-range").forEach((el) => {
+    el.classList.remove("__pp-tagged", "__pp-selected", "__pp-range");
     el.removeAttribute("data-pp-num");
   });
   state.annotations.forEach((a, i) => {
+    const keys = a.review?.lineKeys ?? null;
+    if (keys && keys.length) {
+      // Review annotation: tag every matching line variant (split + unified copies).
+      const all: Element[] = [];
+      for (const k of keys) {
+        doc.querySelectorAll(`[data-line-key="${cssAttr(k)}"]`).forEach((el) => all.push(el));
+      }
+      if (!all.length) return;
+      all.forEach((el) => {
+        el.classList.add("__pp-range");
+        if (state.selectedId === a.id) el.classList.add("__pp-selected");
+      });
+      // Badge sits on the first line of the range only (per view).
+      for (const k of keys.slice(0, 1)) {
+        doc.querySelectorAll(`[data-line-key="${cssAttr(k)}"]`).forEach((el) => {
+          el.classList.add("__pp-tagged");
+          el.setAttribute("data-pp-num", (i + 1).toString());
+        });
+      }
+      return;
+    }
     try {
       const found = doc.querySelectorAll(a.selector);
       const el = found[0];
@@ -126,6 +213,10 @@ export function reapply(doc: Document | null): void {
       /* invalid selector — skip */
     }
   });
+}
+
+function cssAttr(s: string): string {
+  return s.replace(/"/g, '\\"');
 }
 
 export function reapplyActive(): void {

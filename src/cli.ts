@@ -1,6 +1,7 @@
 import { annotate } from "./commands/annotate.ts";
 import { browserSession } from "./commands/browser-session.ts";
 import { list } from "./commands/list.ts";
+import { review } from "./commands/review.ts";
 
 export const VERSION = "0.2.0";
 
@@ -8,6 +9,7 @@ const HELP = `pinpoint — visual HTML & Markdown annotator for Claude Code
 
 Usage:
   pinpoint annotate <file>       Open the annotator on an .html or .md file; print the feedback brief to stdout
+  pinpoint review                Annotate the working-tree diff (vs HEAD) and print the brief
   pinpoint browser-session       Start a browser review session for the Chrome extension
   pinpoint browser               Shorthand for "browser-session"
   pinpoint <file>                Shorthand for "annotate"
@@ -16,7 +18,8 @@ Usage:
   pinpoint --version             Show version
 
 'annotate' starts a local server on its own port, opens your browser, and blocks
-until you click Approve or Send Feedback (or close the tab). The result prints to
+until you click Approve or Send Feedback (or close the tab). 'review' does the
+same on a rendered split-view of the working-tree diff. The result prints to
 stdout, which is how the /pinpoint slash command hands feedback back to Claude Code.
 Each invocation is independent, so you can run several reviews at once.`;
 
@@ -42,6 +45,10 @@ export async function run(argv: string[]): Promise<void> {
   }
   if (first === "browser-session" || first === "browser") {
     await browserSession(args.slice(1));
+    return;
+  }
+  if (first === "review") {
+    await review(args.slice(1));
     return;
   }
   if (first === "list") {

@@ -7,10 +7,50 @@ export interface Annotation {
   outerHTML: string;
   comment: string;
   createdAt: string;
+  /** Code-review extras — populated only when the annotated element is a diff line row. */
+  review?: ReviewAnchor;
+}
+
+/** Where in the working tree a diff-line annotation points. */
+export interface ReviewAnchor {
+  file: string;
+  /** All lines in the range, in document order. Length ≥ 1 for a single-line annotation. */
+  lines: ReviewAnchorLine[];
+  /** data-line-key for each line — used by the iframe overlay to tag every view-copy. */
+  lineKeys: string[];
+}
+
+export interface ReviewAnchorLine {
+  oldLine: number | null;
+  newLine: number | null;
+  kind: "add" | "del" | "ctx";
+  text: string;
 }
 
 export type Mode = "inspect" | "browse";
 export type Theme = "light" | "dark";
+
+export type SessionKind = "file" | "review";
+
+/** Header meta surfaced in the review shell's toolbar. */
+export interface ReviewMeta {
+  branch: string;
+  fileCount: number;
+  added: number;
+  deleted: number;
+  untrackedCount: number;
+  files: ReviewFile[];
+}
+
+/** One file in the review, used by the outer file-rail. */
+export interface ReviewFile {
+  /** DOM id of the corresponding `<section class="file">` inside the iframe. */
+  id: string;
+  /** Path relative to the repo root (post-rename if renamed). */
+  path: string;
+  added: number;
+  deleted: number;
+}
 
 /** The whole app's state (mirrored into sessionStorage). */
 export interface AppState {
@@ -33,6 +73,8 @@ export interface PinpointConfig {
   fileName: string;
   targetUrl: string;
   apiBase: string;
+  kind: SessionKind;
+  meta?: ReviewMeta;
 }
 
 /** In-iframe badge/highlight styling (kept independent of the app theme). */

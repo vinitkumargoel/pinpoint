@@ -1,14 +1,16 @@
 ---
 name: pinpoint
-description: Open a visual browser annotator for an HTML/Markdown file or a live Chrome tab so the user can click elements/sections and leave element-anchored comments, then act on the structured feedback they send back. Use when the user wants to visually review, annotate, mark up, or get feedback on an HTML mockup, a rendered page, a live local/staging web app, or a Markdown plan/spec — e.g. "review this page", "annotate this mockup", "let me mark up the plan", "pinpoint this file", "pinpoint the browser" — or right after you generate an HTML/Markdown file or browser UI and want the user to mark it up before you iterate.
+description: Open a visual browser annotator for an HTML/Markdown file, a live Chrome tab, or the working-tree git diff so the user can click elements/sections/lines and leave anchored comments, then act on the structured feedback they send back. Use when the user wants to visually review, annotate, mark up, or get feedback on an HTML mockup, a rendered page, a live local/staging web app, a Markdown plan/spec, or the code you just changed — e.g. "review this page", "annotate this mockup", "let me mark up the plan", "pinpoint this file", "pinpoint the browser", "review my changes", "let me mark up the diff" — or right after you generate an HTML/Markdown file, browser UI, or batch of code edits and want the user to mark it up before you iterate.
 ---
 
 # Pinpoint — visual annotation review
 
-Pinpoint lets the user review either a file (`.html` or `.md`) or a live page already open
-in Chrome. The user clicks elements to leave element-anchored comments plus a page-wide
-note, and the CLI **blocks until they click Approve, Send Feedback, Stop, or the session
-times out**. Markdown files are rendered to a styled HTML document before review.
+Pinpoint lets the user review a file (`.html` or `.md`), a live page already open in
+Chrome, or the working-tree git diff. The user clicks elements/lines to leave anchored
+comments plus a page-wide note, and the CLI **blocks until they click Approve, Send
+Feedback, Stop, or the session times out**. Markdown files are rendered to a styled HTML
+document before review. Diffs are rendered as a split-view code-review page (toggle to
+unified, collapsible file rail).
 
 ## When to use this
 
@@ -19,16 +21,21 @@ is about something *visual or structural*:
 - The user wants to review a live Chrome tab — local dev app, staging URL, authenticated
   route, or any browser result already open.
 - The user wants to review a Markdown plan, spec, or doc and mark up specific sections.
-- You just produced an HTML or Markdown file and want precise, anchored feedback before
-  iterating.
+- The user wants to review the code you just changed — staged and unstaged together —
+  line by line before you commit or iterate further.
+- You just produced an HTML or Markdown file or a batch of code edits and want precise,
+  anchored feedback before iterating.
 - The user says things like "review this", "annotate the mockup", "mark up the plan",
-  "pinpoint this", "open the annotator", or "pinpoint the browser".
+  "pinpoint this", "open the annotator", "pinpoint the browser", or "review my changes".
 
 ## Choose the right mode
 
 - **File review** — use when there is a concrete `.html` or `.md` file path to inspect.
 - **Browser review** — use when the target is already open in Chrome and the user's exact
   browser state (auth, dynamic data, live app) matters.
+- **Diff review** — use when the user wants to review the working-tree changes (staged +
+  unstaged) in the current git repo. Reach for this proactively after you've made a batch
+  of code edits and want anchored line-level feedback before you commit or move on.
 
 ## How to run it
 
@@ -52,6 +59,22 @@ they click **Stop**, all browser annotations are discarded, the page overlay is 
 no feedback is sent.
 
 The user can invoke browser review with `/pinpoint browser`.
+
+**Diff review:**
+```bash
+pinpoint review
+```
+
+Runs `git diff HEAD` (working tree vs HEAD — staged + unstaged together), renders it as a
+split-view code-review page, and opens the annotator. No file argument; cwd must be a git
+repo. The user clicks any line on either side to annotate. Toolbar offers Split / Unified
+view, a collapsible file rail, expand/collapse all; `[ S J K N P` for keyboard nav.
+
+Exits 0 with `No changes to review.` when the diff is empty; exits 1 with an actionable
+"narrow scope or split commits" message if the diff exceeds the ~5,000 line hard ceiling.
+Untracked files are not rendered (yet) but their count is surfaced in a banner.
+
+The user can invoke diff review with `/pinpoint review`.
 
 **List active reviews:**
 ```bash
@@ -99,6 +122,21 @@ HTML context, and the user's comment; use them to locate the target precisely. F
 **Markdown** files the selector points into the *rendered* HTML — use the element's quoted
 text to find the matching place in the `.md` source. Summarize what you changed.
 
+**`# Code Review Feedback` brief** — diff review result. There is **no `**File:**` line at
+the top** — instead, each annotation's HTML context block carries the real source location
+in data attributes on the annotated `<div class="line …">`:
+
+- `data-file="src/server.ts"` — the path to edit (relative to the repo root).
+- `data-new-line="43"` — the line number on the **new** side (post-edit state). Read this
+  for `add` and `ctx` annotations.
+- `data-old-line="41"` — the line number on the **old** side (pre-edit). Use this when
+  `data-new-line` is empty, i.e. for pure deletions the user commented on.
+- `data-kind="add" | "del" | "ctx"` — which kind of line was annotated.
+
+Read those attrs from the `outerHTML` block, open the file at `data-file`, and apply the
+change described in the comment to the right line. Don't follow the CSS selector — the
+data attributes are the authoritative reference. Summarize what you changed.
+
 **`# Browser UI Feedback` brief** — browser review result. Contains:
 - `**Page title:**` and `**Page URL:**` — identify the reviewed page.
 - `**Screenshot:** /path/page-screenshot.png` — page-level overview; use for overall layout
@@ -120,3 +158,5 @@ no edits.
 
 **`Browser session canceled — no feedback submitted.`** — user stopped the browser review;
 acknowledge, no edits.
+
+**`No changes to review.`** — `pinpoint review` ran in a clean repo; acknowledge, no edits.

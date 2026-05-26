@@ -6,13 +6,15 @@ import { startHeartbeat } from "./finalize";
 import { hideHover } from "./hover";
 import { initDialog } from "./dialog";
 import { initKeyboard } from "./keyboard";
+import { installReviewMessageListener } from "./iframe";
 
 /* Boot the annotator. */
-// Name the tab after the file so concurrent reviews are distinguishable.
-document.title = (CFG.fileName && CFG.fileName !== "(unknown)" ? CFG.fileName + " — " : "") + "Pinpoint";
+const titleHead = CFG.kind === "review" ? "Review" : CFG.fileName && CFG.fileName !== "(unknown)" ? CFG.fileName : "";
+document.title = (titleHead ? titleHead + " — " : "") + "Pinpoint";
 window.addEventListener("blur", hideHover);
 initDialog();
 loadPersisted();
+if (CFG.kind === "review") installReviewMessageListener();
 buildShells();
 applyTheme();
 switchTo("a");

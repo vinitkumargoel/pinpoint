@@ -15,6 +15,7 @@ export const CFG: PinpointConfig = window.__PINPOINT__ ?? {
   fileName: "(unknown)",
   targetUrl: "about:blank",
   apiBase: "/__pinpoint",
+  kind: "file",
 };
 
 export const SS_KEY = "pinpoint:comments"; // sessionStorage — annotations & comments

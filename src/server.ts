@@ -14,6 +14,22 @@ export interface FinalizeResult {
   brief?: string;
 }
 
+export interface ReviewFile {
+  id: string;
+  path: string;
+  added: number;
+  deleted: number;
+}
+
+export interface ReviewMeta {
+  branch: string;
+  fileCount: number;
+  added: number;
+  deleted: number;
+  untrackedCount: number;
+  files: ReviewFile[];
+}
+
 export interface StartServerOptions {
   /** Absolute path to the directory served as the static web root (the target file's folder). */
   targetDir: string;
@@ -23,6 +39,15 @@ export interface StartServerOptions {
   fileName: string;
   /** When true, the target file is Markdown and is rendered to HTML before it's served. */
   isMarkdown?: boolean;
+  /**
+   * Which UI shell the annotator should boot. "file" (default) is the existing
+   * HTML / Markdown reviewer. "review" is the code-review shell — the iframe
+   * holds a rendered git diff, the chrome surfaces branch / split-or-unified /
+   * file rail, and the brief is grouped by file:line.
+   */
+  kind?: "file" | "review";
+  /** Header meta surfaced in the review shell's toolbar. Ignored when kind=file. */
+  meta?: ReviewMeta;
 }
 
 export interface RunningServer {
@@ -62,6 +87,8 @@ export function startServer(opts: StartServerOptions): RunningServer {
     fileName: opts.fileName,
     targetUrl,
     apiBase: API_PREFIX,
+    kind: opts.kind ?? "file",
+    meta: opts.meta,
   });
 
   let done = false;

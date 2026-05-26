@@ -1,15 +1,15 @@
-import type { Annotation } from "./types";
+import type { Annotation, ReviewAnchor, ReviewAnchorLine } from "./types";
 import { state, ctx, persist } from "./state";
+import { CFG } from "./config";
 import { getSelector, shortOuter } from "./selector";
 import { reapplyActive } from "./iframe";
 import { render } from "./sidebar";
 import { updateFinalizeButtons } from "./dom";
 import { confirmDialog, toast } from "./dialog";
 
-/** Create an annotation for a clicked element and focus its comment box. */
+/** Create an annotation for a clicked element (file/markdown review mode). */
 export function addAnnotation(el: Element): void {
-  // Drop any earlier annotation the user started but left blank before
-  // beginning a new one — an annotation only exists once it has a comment.
+  if (CFG.kind === "review") return; // review uses addReviewRangeAnnotation via postMessage
   pruneEmpty();
   const annot: Annotation = {
     id: "a_" + Date.now() + "_" + Math.random().toString(36).slice(2, 7),
@@ -19,6 +19,74 @@ export function addAnnotation(el: Element): void {
     outerHTML: shortOuter(el),
     comment: "",
     createdAt: new Date().toISOString(),
+  };
+  state.annotations.push(annot);
+  state.selectedId = annot.id;
+  persist();
+  reapplyActive();
+  render();
+  setTimeout(() => {
+    const ta = ctx.active?.querySelector<HTMLTextAreaElement>(`.annot[data-id="${annot.id}"] textarea`);
+    if (ta) {
+      ta.focus();
+      ta.scrollIntoView({ block: "center", behavior: "smooth" });
+    }
+  }, 60);
+}
+
+/**
+ * Create a review annotation from a range posted by the diff iframe.
+ *
+ * The diff page picks the first matching DOM line for the badge selector;
+ * `lineKeys` carries every line in the range so `iframe.reapply` can tag both
+ * the split and unified copies of each line.
+ */
+export interface ReviewRangePayload {
+  file: string;
+  lineKeys: string[];
+  lines: Array<{
+    oldLine: number | null;
+    newLine: number | null;
+    kind: "add" | "del" | "ctx";
+    text: string;
+    lineKey: string;
+  }>;
+}
+
+export function addReviewRangeAnnotation(payload: ReviewRangePayload): void {
+  if (CFG.kind !== "review") return;
+  if (!payload.lines.length) return;
+  pruneEmpty();
+
+  const lines: ReviewAnchorLine[] = payload.lines.map((l) => ({
+    oldLine: l.oldLine,
+    newLine: l.newLine,
+    kind: l.kind,
+    text: l.text,
+  }));
+  const review: ReviewAnchor = {
+    file: payload.file,
+    lines,
+    lineKeys: [...payload.lineKeys],
+  };
+
+  // Anchor selector on the first line so the existing file-shell engine can
+  // still locate something even in fallback paths; reapply uses lineKeys.
+  const firstKey = payload.lineKeys[0]!;
+  const selector = `[data-line-key="${firstKey.replace(/"/g, '\\"')}"]`;
+  const firstLine = lines[0]!;
+  const sign = firstLine.kind === "add" ? "+" : firstLine.kind === "del" ? "-" : " ";
+  const annot: Annotation = {
+    id: "a_" + Date.now() + "_" + Math.random().toString(36).slice(2, 7),
+    selector,
+    tag: "div",
+    text: (sign + firstLine.text).slice(0, 120),
+    outerHTML: lines
+      .map((l) => (l.kind === "add" ? "+" : l.kind === "del" ? "-" : " ") + l.text)
+      .join("\n"),
+    comment: "",
+    createdAt: new Date().toISOString(),
+    review,
   };
   state.annotations.push(annot);
   state.selectedId = annot.id;
@@ -74,8 +142,6 @@ export function updateComment(id: string, text: string): void {
   if (a) {
     a.comment = text;
     persist();
-    // Typing the first comment flips Approve → Send (and clearing it flips back),
-    // without a full re-render that would steal textarea focus.
     updateFinalizeButtons();
   }
 }

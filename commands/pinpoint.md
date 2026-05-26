@@ -1,5 +1,5 @@
 ---
-description: Open Pinpoint for a file or live Chrome tab and act on the feedback
+description: Open Pinpoint for a file, live Chrome tab, or the working-tree diff and act on the feedback
 allowed-tools: Bash(pinpoint:*)
 ---
 
@@ -17,6 +17,20 @@ the user's comment — use them to locate the target precisely. For Markdown fil
 selector points into the rendered HTML, so use the element's quoted text to find the
 matching spot in the `.md` source. Make the edits, then briefly summarize what changed.
 
+**`# Code Review Feedback` (diff review)** — implement the requested changes to the working
+tree. There is no `**File:**` line at the top; instead each annotation's HTML context block
+carries the real source location in data attributes on the annotated `<div class="line …">`:
+- `data-file="path/to/file.ts"` — the file to edit (relative to the repo root).
+- `data-new-line="N"` — the line number on the **new** (post-edit) side. Use this for `add`
+  and `ctx` annotations.
+- `data-old-line="N"` — the line number on the **old** (pre-edit) side. Fall back to this
+  when `data-new-line` is empty (pure deletion annotations).
+- `data-kind="add" | "del" | "ctx"` — which side of the diff was annotated.
+
+Read those attrs from the `outerHTML` block, open `data-file`, and apply the change
+described in the comment at the right line. Don't rely on the CSS selector — the data
+attributes are the authoritative reference. Summarize what changed.
+
 **`# Browser UI Feedback` (browser review)** — implement the requested changes in the code
 that produces the reviewed page. The brief includes:
 - `**Screenshot:** /path/page-screenshot.png` — page-level overview of the viewport at send
@@ -32,9 +46,12 @@ that produces the reviewed page. The brief includes:
 **`Review window closed`** or **`Browser session canceled`** — the user ended the review
 without submitting; acknowledge and make no edits.
 
+**`No changes to review.`** — `pinpoint review` ran in a clean repo; acknowledge, no edits.
+
 ---
 
 Usage hints:
 - `/pinpoint <path/to/file.html|file.md>` — file review
+- `/pinpoint review` — diff review (annotates `git diff HEAD` — staged + unstaged combined)
 - `/pinpoint browser` — browser review (then tell the user to open the Chrome extension on
   the target tab and click **Start**; **Stop** discards the draft and sends nothing)
