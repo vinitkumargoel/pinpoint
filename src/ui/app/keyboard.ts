@@ -1,11 +1,11 @@
 import { state } from "./state";
-import { CFG } from "./config";
-import { setMode, clearAll, setView, toggleRail, jumpInFrame } from "./shell";
+import { setMode, clearAll } from "./shell";
 import { toggleTheme } from "./theme";
 import { onSend, onApprove } from "./finalize";
 import { hasFeedback, q } from "./dom";
 import { scrollToElement } from "./iframe";
 import { render } from "./sidebar";
+import { activeMode } from "./mode/active";
 
 const SC = "shortcuts-visible";
 
@@ -49,12 +49,9 @@ function onKD(e: KeyboardEvent): void {
   // Single-key shortcuts are suppressed while the user is typing
   if (isEditing()) return;
 
-  // Bracket isn't lowercase-able; handle separately so review-mode rail collapse works.
-  if (CFG.kind === "review" && e.key === "[") {
-    e.preventDefault();
-    toggleRail();
-    return;
-  }
+  // Mode-specific keys go first. ReviewMode owns [, S, J, K, P, N; FileMode is
+  // a no-op here. If the mode consumes the event, we're done.
+  if (activeMode().handleKey(e)) return;
 
   switch (e.key.toLowerCase()) {
     case "i":
@@ -66,48 +63,11 @@ function onKD(e: KeyboardEvent): void {
     case "t":
       toggleTheme();
       break;
-    case "s":
-      if (CFG.kind === "review") {
-        e.preventDefault();
-        const cur = document.querySelector('[data-role="view-split"]')?.classList.contains("on") ? "split" : "unified";
-        setView(cur === "split" ? "unified" : "split");
-      }
-      break;
-    case "j":
-      if (CFG.kind === "review") {
-        e.preventDefault();
-        jumpInFrame("change", 1);
-      }
-      break;
-    case "k":
-      if (CFG.kind === "review") {
-        e.preventDefault();
-        jumpInFrame("change", -1);
-      }
-      break;
-    case "p":
-      if (CFG.kind === "review") {
-        e.preventDefault();
-        jumpInFrame("file", -1);
-      }
-      break;
-    // G/N → focus the global page-wide note (quick comment without leaving Browse mode)
-    // In review mode N is rebound to "next file" — fall through to default for N.
-    case "g": {
-      const ta = q("global-comment") as HTMLTextAreaElement | null;
-      if (ta) {
-        ta.focus();
-        const l = ta.value.length;
-        ta.setSelectionRange(l, l);
-      }
-      break;
-    }
+    // G → focus the global page-wide note. (In file mode N does the same; in
+    // review mode N is rebound to "next file" by ReviewMode.handleKey, so the
+    // fall-through here only fires for file mode.)
+    case "g":
     case "n": {
-      if (CFG.kind === "review") {
-        e.preventDefault();
-        jumpInFrame("file", 1);
-        break;
-      }
       const ta = q("global-comment") as HTMLTextAreaElement | null;
       if (ta) {
         ta.focus();

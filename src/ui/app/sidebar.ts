@@ -1,38 +1,8 @@
-import type { Annotation } from "./types";
 import { state, ctx } from "./state";
-import { CFG } from "./config";
 import { q, activeDoc, escapeHtml, elementExists, updateFinalizeButtons } from "./dom";
 import { reapplyActive, scrollToElement } from "./iframe";
 import { updateComment, deleteAnnot, requestDeleteAnnot } from "./annotations";
-
-function refBlock(a: Annotation): string {
-  if (CFG.kind === "review" && a.review) {
-    const r = a.review;
-    const first = r.lines[0]!;
-    const last = r.lines[r.lines.length - 1]!;
-    const side =
-      first.kind === "del" && first.newLine == null
-        ? "old"
-        : first.kind === "add" || first.newLine != null
-          ? "new"
-          : "new";
-    const startN = side === "old" ? first.oldLine : first.newLine;
-    const endN = side === "old" ? last.oldLine : last.newLine;
-    const range = startN === endN ? `${startN}` : `${startN}-${endN}`;
-    const ref = `${r.file} · line ${range} (${side})`;
-    const preview = r.lines
-      .map((l) => {
-        const sign = l.kind === "add" ? "+" : l.kind === "del" ? "-" : " ";
-        return `<div class="annot-line-preview ${escapeHtml(l.kind)}">${escapeHtml(sign + l.text)}</div>`;
-      })
-      .join("");
-    return `<div class="annot-line-ref">${escapeHtml(ref)}</div>${preview}`;
-  }
-  return (
-    `<div class="annot-selector">${escapeHtml(a.selector)}</div>` +
-    `<div class="annot-preview" title="${escapeHtml(a.outerHTML)}">${escapeHtml(a.outerHTML)}</div>`
-  );
-}
+import { activeMode } from "./mode/active";
 
 /** Rebuild the annotation list (and counts) in the active shell's sidebar. */
 export function render(): void {
@@ -45,7 +15,6 @@ export function render(): void {
   if (gc && gc.value !== state.globalComment) gc.value = state.globalComment;
 
   const doc = activeDoc();
-  const placeholder = CFG.kind === "review" ? "What needs to change here?" : "What needs to change here?";
   state.annotations.forEach((a, i) => {
     const n = i + 1;
     const found = elementExists(doc, a.selector);
@@ -60,9 +29,9 @@ export function render(): void {
           <button type="button" data-act="del" class="danger" title="Delete" aria-label="Delete">&#10005;</button>
         </div>
       </div>
-      ${refBlock(a)}
+      ${activeMode().formatSidebarRef(a)}
       ${found ? "" : '<div class="annot-warn">⚠ This element isn’t on the page anymore.</div>'}
-      <textarea placeholder="${escapeHtml(placeholder)}">${escapeHtml(a.comment)}</textarea>`;
+      <textarea placeholder="What needs to change here?">${escapeHtml(a.comment)}</textarea>`;
 
     el.addEventListener("click", (e) => {
       const t = e.target as Element;
