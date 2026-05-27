@@ -68,8 +68,9 @@ test("review shell renders the brand chip + meta line", () => {
 test("review shell exposes a Split / Unified segmented control", () => {
   expect(document.querySelector('[data-role="view-split"]')).not.toBeNull();
   expect(document.querySelector('[data-role="view-unified"]')).not.toBeNull();
-  // Split is the default-on tab.
-  expect(document.querySelector('[data-role="view-split"]')?.classList.contains("on")).toBe(true);
+  // Unified is the default-on tab.
+  expect(document.querySelector('[data-role="view-unified"]')?.classList.contains("on")).toBe(true);
+  expect(document.querySelector('[data-role="view-split"]')?.classList.contains("on")).toBe(false);
 });
 
 test("review shell lists the changed files in the rail", () => {

@@ -458,7 +458,7 @@ export function renderDiffPage(files: DiffFile[], opts: RenderOptions = {}): str
   .binary-row { padding: 12px; color: var(--muted); font-family: var(--mono); font-size: 12px; }
 </style>
 </head>
-<body data-view="split">
+<body data-view="unified">
 <main>
   ${untrackedNote}
   ${fileSections}

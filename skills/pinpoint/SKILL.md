@@ -9,8 +9,8 @@ Pinpoint lets the user review a file (`.html` or `.md`), a live page already ope
 Chrome, or the working-tree git diff. The user clicks elements/lines to leave anchored
 comments plus a page-wide note, and the CLI **blocks until they click Approve, Send
 Feedback, Stop, or the session times out**. Markdown files are rendered to a styled HTML
-document before review. Diffs are rendered as a split-view code-review page (toggle to
-unified, collapsible file rail).
+document before review. Diffs are rendered as a unified code-review page (toggle to
+split, collapsible file rail).
 
 ## When to use this
 
@@ -66,9 +66,9 @@ pinpoint review
 ```
 
 Runs `git diff HEAD` (working tree vs HEAD — staged + unstaged together), renders it as a
-split-view code-review page, and opens the annotator. No file argument; cwd must be a git
-repo. The user clicks any line on either side to annotate. Toolbar offers Split / Unified
-view, a collapsible file rail, expand/collapse all; `[ S J K N P` for keyboard nav.
+unified code-review page, and opens the annotator. No file argument; cwd must be a git
+repo. The user clicks any line to annotate. Toolbar offers Split / Unified view (defaults
+to Unified), a collapsible file rail, expand/collapse all; `[ S J K N P` for keyboard nav.
 
 Exits 0 with `No changes to review.` when the diff is empty; exits 1 with an actionable
 "narrow scope or split commits" message if the diff exceeds the ~5,000 line hard ceiling.

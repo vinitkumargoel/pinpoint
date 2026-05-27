@@ -34,7 +34,9 @@ Local-only, no cloud, no accounts, no telemetry.
 curl -fsSL https://raw.githubusercontent.com/vinitkumargoel/pinpoint/main/scripts/install.sh | bash
 ```
 
-Installs the `pinpoint` CLI, the `/pinpoint` slash command, and a skill so Claude reaches for it automatically. Requires [Bun](https://bun.sh) ≥ 1.1 and `git`. Make sure `~/.local/bin` is on your `PATH`.
+Installs the `pinpoint` CLI, the `/pinpoint` slash command, and a skill so Claude reaches for it automatically. Requires `git`; the installer auto-installs [Bun](https://bun.sh) ≥ 1.1 if it isn't already present, and auto-appends `~/.local/bin` to your shell profile if needed (open a new shell after install). Set `PINPOINT_SKIP_BUN_INSTALL=1` or `PINPOINT_SKIP_PATH_EDIT=1` to opt out.
+
+**Platform:** macOS and Linux. Windows users: run the installer inside [WSL2](https://aka.ms/wsl).
 
 **Update:** re-run the same curl command, or tell Claude **"update pinpoint"**.
 
@@ -62,7 +64,7 @@ Blocks the Claude session, opens the annotator in your browser, and resumes once
 /pinpoint review
 ```
 
-Renders `git diff HEAD` (staged + unstaged together) as a split-view code review page in the annotator, with a collapsible file rail, Split/Unified toggle, and `[ S J K N P` keyboard navigation. Click any line on either side to attach a comment. Each annotation in the brief carries `data-file`, `data-new-line`, `data-old-line`, and `data-kind` so Claude can resolve the exact location without parsing selectors.
+Renders `git diff HEAD` (staged + unstaged together) as a unified code-review page in the annotator (toggle to Split with `S`), with a collapsible file rail and `[ S J K N P` keyboard navigation. Click any line to attach a comment. Each annotation in the brief carries `data-file`, `data-new-line`, `data-old-line`, and `data-kind` so Claude can resolve the exact location without parsing selectors.
 
 `No changes to review.` exits 0 silently in a clean repo. Diffs above the ~5,000-line ceiling are refused with a "narrow scope or split commits" message. Untracked files aren't rendered (yet) but their count appears as a banner.
 

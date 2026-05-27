@@ -60,7 +60,7 @@ test("ReviewMode.buildBrief groups annotations by file and labels single-line ad
   );
   const brief = ReviewMode.buildBrief([ann]);
   expect(brief).toContain("## src/server.ts");
-  expect(brief).toContain("### #1 — line 43 (new) · addition");
+  expect(brief).toContain("### #1 — L43 (new)");
   expect(brief).toContain("```");
   expect(brief).toContain("+  log('hi');");
   expect(brief).toContain("**Feedback:** use debug level");
@@ -77,7 +77,7 @@ test("ReviewMode.buildBrief renders multi-line ranges with the line span and a r
     "extract to helper",
   );
   const brief = ReviewMode.buildBrief([ann]);
-  expect(brief).toContain("### #1 — line 43-45 (new) · 3-line range");
+  expect(brief).toContain("### #1 — L43–45 (new)");
   expect(brief).toContain("+if (foo) {");
   expect(brief).toContain("+  log('hi');");
   expect(brief).toContain("+}");
@@ -90,7 +90,7 @@ test("ReviewMode.buildBrief renders pure-deletion annotations under the old side
     "is this dead code?",
   );
   const brief = ReviewMode.buildBrief([ann]);
-  expect(brief).toContain("### #1 — line 12 (old) · deletion");
+  expect(brief).toContain("### #1 — L12 (old)");
   expect(brief).toContain("-removed = true;");
 });
 

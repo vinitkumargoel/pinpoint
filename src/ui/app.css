@@ -242,21 +242,21 @@ iframe { display: block; width: 100%; height: 100%; border: 0; background: #fff;
   font-size: 10.5px; color: var(--faint);
 }
 
-/* Annotation cards in review mode: file:line ref instead of CSS selector. */
+/* Annotation cards in review mode: compact file:line ref, no code preview. */
 .annot-line-ref {
   font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 11px;
+  display: flex; align-items: baseline; gap: 6px;
+  margin-bottom: 6px; min-width: 0;
+}
+.annot-line-ref .lr-range {
   color: var(--accent); background: var(--accent-soft);
-  padding: 3px 6px; border-radius: 5px; margin-bottom: 6px;
-  display: inline-block;
+  padding: 2px 6px; border-radius: 5px; flex-shrink: 0;
 }
-.annot-line-preview {
-  font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 10.5px;
-  border-radius: 5px; padding: 3px 6px; margin-bottom: 6px;
-  white-space: pre; overflow-x: auto;
+.annot-line-ref .lr-file {
+  color: var(--dim); min-width: 0; overflow: hidden;
+  text-overflow: ellipsis; white-space: nowrap; direction: rtl;
+  text-align: left;
 }
-.annot-line-preview.add { background: #e6ffec; color: #1a5826; }
-.annot-line-preview.del { background: #ffebe9; color: #82071e; }
-.annot-line-preview.ctx { background: var(--bg); color: var(--dim); }
 
 /* ============================================================
    FLOATING HOVER LABEL (positioned over the active iframe)

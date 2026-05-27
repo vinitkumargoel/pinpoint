@@ -31,8 +31,8 @@ function chrome(): string {
     <div class="review-meta">${metaLine}</div>
     <button type="button" class="btn ghost" data-role="rail-toggle" data-shortcut="[" title="Toggle file rail">&#8676; Files</button>
     <div class="seg">
-      <button data-role="view-split" class="on" data-shortcut="S">Split</button>
-      <button data-role="view-unified">Unified</button>
+      <button data-role="view-split" data-shortcut="S">Split</button>
+      <button data-role="view-unified" class="on">Unified</button>
     </div>
     <div class="spacer"></div>
     <div class="counts" data-role="counts">0 annotations</div>
@@ -74,20 +74,12 @@ function formatLineRef(a: Annotation): string {
     first.kind === "del" && first.newLine == null ? "old" : "new";
   const startN = side === "old" ? first.oldLine : first.newLine;
   const endN = side === "old" ? last.oldLine : last.newLine;
-  const range = startN === endN ? `${startN}` : `${startN}-${endN}`;
-  const tag =
-    r.lines.length === 1
-      ? first.kind === "del"
-        ? "deletion"
-        : first.kind === "add"
-          ? "addition"
-          : "context"
-      : `${r.lines.length}-line range`;
-  return `line ${range} (${side}) · ${tag}`;
+  const range = startN === endN ? `L${startN}` : `L${startN}–${endN}`;
+  return `${range} (${side})`;
 }
 
 function applyPrefs(shell: HTMLElement): void {
-  let view: "split" | "unified" = "split";
+  let view: "split" | "unified" = "unified";
   let rail: "open" | "closed" = "open";
   try {
     const v = localStorage.getItem(VIEW_LS_KEY);
@@ -119,14 +111,7 @@ export const ReviewMode: Mode = {
       return `<div class="annot-selector">${escapeHtml(a.selector)}</div>`;
     }
     const r = a.review;
-    const ref = `${r.file} · ${formatLineRef(a)}`;
-    const preview = r.lines
-      .map((l) => {
-        const sign = l.kind === "add" ? "+" : l.kind === "del" ? "-" : " ";
-        return `<div class="annot-line-preview ${escapeHtml(l.kind)}">${escapeHtml(sign + l.text)}</div>`;
-      })
-      .join("");
-    return `<div class="annot-line-ref">${escapeHtml(ref)}</div>${preview}`;
+    return `<div class="annot-line-ref" title="${escapeHtml(r.file)}"><span class="lr-range">${escapeHtml(formatLineRef(a))}</span><span class="lr-file">${escapeHtml(r.file)}</span></div>`;
   },
 
   buildBrief(items: Annotation[]): string {
