@@ -139,6 +139,35 @@ index aaaaaaa..bbbbbbb 100644
   expect(html).toContain("&lt;/script&gt;");
 });
 
+test("syntax-highlights code lines for known extensions, plain-text for unknown", () => {
+  const tsDiff = `diff --git a/src/x.ts b/src/x.ts
+index aaaaaaa..bbbbbbb 100644
+--- a/src/x.ts
++++ b/src/x.ts
+@@ -1,1 +1,1 @@
+-const greeting = "hello";
++const greeting = "world";
+`;
+  const tsHtml = renderDiffPage(parseDiff(tsDiff));
+  // Known extension → hljs token spans appear inside .code
+  expect(tsHtml).toContain('<span class="hljs-keyword">const</span>');
+  expect(tsHtml).toContain('<span class="hljs-string">');
+  expect(tsHtml).toContain('class="code hljs"');
+
+  const unknownDiff = `diff --git a/foo.xyzunknown b/foo.xyzunknown
+index aaaaaaa..bbbbbbb 100644
+--- a/foo.xyzunknown
++++ b/foo.xyzunknown
+@@ -1,1 +1,1 @@
+-const a = 1;
++const a = 2;
+`;
+  const unknownHtml = renderDiffPage(parseDiff(unknownDiff));
+  // Unknown extension → still has .code hljs wrapper, but no hljs-* token spans
+  expect(unknownHtml).toContain('class="code hljs"');
+  expect(unknownHtml).not.toContain('<span class="hljs-');
+});
+
 test("summarizeDiff produces the meta the review shell needs", () => {
   const sum = summarizeDiff(parseDiff(sample));
   expect(sum.fileCount).toBe(2);

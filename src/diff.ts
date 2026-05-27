@@ -10,8 +10,53 @@
  * routing) lives in `src/diff-runtime/` — bundled by `scripts/build-ui.ts` and
  * text-imported below.
  */
+import hljs from "highlight.js/lib/common";
 import diffRuntimeJs from "./diff-runtime/runtime.bundle.js" with { type: "text" };
 const DIFF_RUNTIME = diffRuntimeJs as unknown as string;
+
+/** Map a file path's extension to a highlight.js language id. Returns null for
+ *  unknown / binary / unrecognised extensions — caller falls back to plain text. */
+function inferLanguage(path: string): string | null {
+  const dot = path.lastIndexOf(".");
+  if (dot < 0) return null;
+  const ext = path.slice(dot + 1).toLowerCase();
+  const map: Record<string, string> = {
+    ts: "typescript", tsx: "typescript", mts: "typescript", cts: "typescript",
+    js: "javascript", jsx: "javascript", mjs: "javascript", cjs: "javascript",
+    py: "python", pyi: "python",
+    go: "go",
+    rs: "rust",
+    java: "java",
+    rb: "ruby",
+    php: "php",
+    swift: "swift",
+    kt: "kotlin", kts: "kotlin",
+    cs: "csharp",
+    cpp: "cpp", cc: "cpp", cxx: "cpp", c: "c", h: "cpp", hpp: "cpp",
+    sh: "bash", bash: "bash", zsh: "bash",
+    sql: "sql",
+    json: "json",
+    yaml: "yaml", yml: "yaml",
+    toml: "ini",
+    md: "markdown", markdown: "markdown",
+    html: "xml", htm: "xml", xml: "xml", svg: "xml", vue: "xml",
+    css: "css", scss: "scss", sass: "scss", less: "less",
+    dockerfile: "dockerfile",
+  };
+  const lang = map[ext];
+  return lang && hljs.getLanguage(lang) ? lang : null;
+}
+
+/** Highlight one diff line. Returns HTML-safe markup. Falls back to plain
+ *  escaped text on any error — highlighting must never break the renderer. */
+function highlightLine(text: string, language: string | null): string {
+  if (!language || text === "") return escapeHtml(text);
+  try {
+    return hljs.highlight(text, { language, ignoreIllegals: true }).value;
+  } catch {
+    return escapeHtml(text);
+  }
+}
 
 export type LineKind = "ctx" | "add" | "del";
 
@@ -226,12 +271,13 @@ function lineKey(fileIdx: number, kind: LineKind, oldNum: number | null, newNum:
 
 const MARK_BUTTON = `<button class="line-mark" type="button" tabindex="-1" aria-label="Annotate this line">+</button>`;
 
-function renderUnifiedLine(file: DiffFile, fileIdx: number, l: DiffLine): string {
+function renderUnifiedLine(file: DiffFile, fileIdx: number, l: DiffLine, language: string | null): string {
   const key = lineKey(fileIdx, l.kind, l.oldNum, l.newNum);
   const path = file.newPath !== "/dev/null" ? file.newPath : file.oldPath;
   const sign = l.kind === "add" ? "+" : l.kind === "del" ? "-" : " ";
   const oldCell = l.oldNum != null ? String(l.oldNum) : "";
   const newCell = l.newNum != null ? String(l.newNum) : "";
+  const code = highlightLine(l.text, language) || " ";
   return (
     `<div class="line ${l.kind}"` +
     ` data-line-key="${key}"` +
@@ -243,18 +289,19 @@ function renderUnifiedLine(file: DiffFile, fileIdx: number, l: DiffLine): string
     `<span class="gu gu-old">${oldCell}</span>` +
     `<span class="gu gu-new">${newCell}</span>` +
     `<span class="sign">${sign}</span>` +
-    `<span class="code">${escapeHtml(l.text) || " "}</span>` +
+    `<span class="code hljs">${code}</span>` +
     `</div>`
   );
 }
 
-function renderSplitRow(file: DiffFile, fileIdx: number, row: SplitRow): string {
+function renderSplitRow(file: DiffFile, fileIdx: number, row: SplitRow, language: string | null): string {
   const path = file.newPath !== "/dev/null" ? file.newPath : file.oldPath;
   const side = (l: DiffLine | null, kind: "left" | "right"): string => {
     if (!l) return `<div class="line blank ${kind}"><span class="gu"></span><span class="sign"></span><span class="code"> </span></div>`;
     const key = lineKey(fileIdx, l.kind, l.oldNum, l.newNum);
     const num = kind === "left" ? l.oldNum : l.newNum;
     const sign = l.kind === "add" ? "+" : l.kind === "del" ? "-" : " ";
+    const code = highlightLine(l.text, language) || " ";
     return (
       `<div class="line ${l.kind} ${kind}"` +
       ` data-line-key="${key}"` +
@@ -266,7 +313,7 @@ function renderSplitRow(file: DiffFile, fileIdx: number, row: SplitRow): string 
       MARK_BUTTON +
       `<span class="gu">${num ?? ""}</span>` +
       `<span class="sign">${sign}</span>` +
-      `<span class="code">${escapeHtml(l.text) || " "}</span>` +
+      `<span class="code hljs">${code}</span>` +
       `</div>`
     );
   };
@@ -284,15 +331,18 @@ function renderFile(file: DiffFile, fileIdx: number): string {
   const stats = statBits.join(" ");
   const fileId = `F-${fileIdx}-${slug(file.newPath || file.oldPath)}`;
 
+  const language = file.isBinary
+    ? null
+    : inferLanguage(file.newPath !== "/dev/null" ? file.newPath : file.oldPath);
   let body = "";
   if (file.isBinary) {
     body = `<div class="binary-row">Binary file changed — not annotatable.</div>`;
   } else {
     for (const hunk of file.hunks) {
       body += `<div class="hunk-head">${escapeHtml(hunk.header)}</div>`;
-      body += `<div class="hunk-body hunk-unified">${hunk.lines.map((l) => renderUnifiedLine(file, fileIdx, l)).join("")}</div>`;
+      body += `<div class="hunk-body hunk-unified">${hunk.lines.map((l) => renderUnifiedLine(file, fileIdx, l, language)).join("")}</div>`;
       const rows = toSplitRows(hunk.lines);
-      body += `<div class="hunk-body hunk-split">${rows.map((r) => renderSplitRow(file, fileIdx, r)).join("")}</div>`;
+      body += `<div class="hunk-body hunk-split">${rows.map((r) => renderSplitRow(file, fileIdx, r, language)).join("")}</div>`;
     }
   }
   return (
@@ -456,6 +506,40 @@ export function renderDiffPage(files: DiffFile[], opts: RenderOptions = {}): str
   }
 
   .binary-row { padding: 12px; color: var(--muted); font-family: var(--mono); font-size: 12px; }
+
+  /* Syntax highlighting (GitHub-style, theme-aware). Diff line backgrounds
+     come from .line.add / .line.del — these rules only color the foreground
+     tokens, so the green/red wash still shows through. */
+  :root, body[data-theme="light"] {
+    --hl-keyword: #cf222e;  --hl-string: #0a3069;  --hl-number: #0550ae;
+    --hl-comment: #6e7781;  --hl-function: #8250df; --hl-title: #6f42c1;
+    --hl-variable: #953800; --hl-builtin: #0550ae;  --hl-tag: #116329;
+    --hl-attr: #0550ae;     --hl-meta: #6e7781;     --hl-section: #0550ae;
+  }
+  body[data-theme="dark"] {
+    --hl-keyword: #ff7b72;  --hl-string: #a5d6ff;  --hl-number: #79c0ff;
+    --hl-comment: #8b949e;  --hl-function: #d2a8ff; --hl-title: #d2a8ff;
+    --hl-variable: #ffa657; --hl-builtin: #79c0ff;  --hl-tag: #7ee787;
+    --hl-attr: #79c0ff;     --hl-meta: #8b949e;     --hl-section: #79c0ff;
+  }
+  .hljs-keyword, .hljs-literal, .hljs-symbol, .hljs-selector-tag,
+  .hljs-operator, .hljs-doctag, .hljs-type { color: var(--hl-keyword); }
+  .hljs-string, .hljs-regexp, .hljs-template-variable,
+  .hljs-template-tag, .hljs-quote { color: var(--hl-string); }
+  .hljs-number { color: var(--hl-number); }
+  .hljs-comment { color: var(--hl-comment); font-style: italic; }
+  .hljs-function, .hljs-title.function_ { color: var(--hl-function); }
+  .hljs-title, .hljs-class .hljs-title, .hljs-title.class_ { color: var(--hl-title); }
+  .hljs-variable, .hljs-attribute, .hljs-attr { color: var(--hl-attr); }
+  .hljs-built_in, .hljs-builtin-name, .hljs-name { color: var(--hl-builtin); }
+  .hljs-tag, .hljs-tag .hljs-name { color: var(--hl-tag); }
+  .hljs-meta { color: var(--hl-meta); }
+  .hljs-section { color: var(--hl-section); font-weight: bold; }
+  .hljs-emphasis { font-style: italic; }
+  .hljs-strong { font-weight: bold; }
+  /* The .hljs class is on .code, used by hljs CSS resets. We override
+     background to transparent so the diff line's add/del wash shows through. */
+  .code.hljs { background: transparent; }
 </style>
 </head>
 <body data-view="unified">
