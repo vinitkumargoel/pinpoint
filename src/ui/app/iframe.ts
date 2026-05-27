@@ -56,7 +56,7 @@ export function installReviewMessageListener(): void {
  * — the iframe boots with its hardcoded default, which may not match what we stored.
  */
 function syncReviewViewToFrame(iframe: HTMLIFrameElement): void {
-  let v: "split" | "unified" = "split";
+  let v: "split" | "unified" = "unified";
   try {
     const saved = localStorage.getItem(VIEW_LS_KEY);
     if (saved === "split" || saved === "unified") v = saved;
