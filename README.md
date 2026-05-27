@@ -14,6 +14,10 @@ Local-only, no cloud, no accounts, no telemetry.
 
 ![File review annotator](images/plan_annotate.png)
 
+**Code review** — annotate the working-tree diff line-by-line, GitHub-PR-style:
+
+![Code review diff annotator](images/review.png)
+
 **Browser review** — annotate a live Chrome tab via the side panel extension:
 
 ![Browser extension side panel](images/browser_Ext.png)
