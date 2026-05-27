@@ -38,7 +38,7 @@ Installs the `pinpoint` CLI, the `/pinpoint` slash command, and a skill so Claud
 
 **Platform:** macOS and Linux. Windows users: run the installer inside [WSL2](https://aka.ms/wsl).
 
-**Update:** re-run the same curl command, or tell Claude **"update pinpoint"**.
+**Update:** re-run the same curl command, or tell Claude **"update pinpoint"**. Pinpoint also checks for new releases once a day on each run and prints a banner + a desktop notification when an update is available — silence it with `PINPOINT_NO_UPDATE_CHECK=1`.
 
 **Uninstall:**
 ```bash

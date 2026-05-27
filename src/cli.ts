@@ -2,6 +2,7 @@ import { annotate } from "./commands/annotate.ts";
 import { browserSession } from "./commands/browser-session.ts";
 import { list } from "./commands/list.ts";
 import { review } from "./commands/review.ts";
+import { checkForUpdates } from "./update-check.ts";
 
 export const VERSION = "0.2.0";
 
@@ -39,6 +40,25 @@ export async function run(argv: string[]): Promise<void> {
     console.log(VERSION);
     process.exit(0);
   }
+  // `list` is read-only and runs without the update check.
+  if (first === "list") {
+    await list();
+    return;
+  }
+
+  // Run the daily upstream-update check before any interactive command.
+  // Cached + capped at 2s, silent on every failure path. Skipped for
+  // help/version (handled above) and `list` (handled just above).
+  const willOpenAnnotator =
+    first === "annotate" ||
+    first === "review" ||
+    first === "browser-session" ||
+    first === "browser" ||
+    !first.startsWith("-");
+  if (willOpenAnnotator) {
+    await checkForUpdates();
+  }
+
   if (first === "annotate") {
     await annotate(args.slice(1));
     return;
@@ -49,10 +69,6 @@ export async function run(argv: string[]): Promise<void> {
   }
   if (first === "review") {
     await review(args.slice(1));
-    return;
-  }
-  if (first === "list") {
-    await list();
     return;
   }
   if (!first.startsWith("-")) {
