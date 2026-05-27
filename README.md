@@ -8,6 +8,18 @@ Local-only, no cloud, no accounts, no telemetry.
 
 ---
 
+## Screenshots
+
+**File review** — annotate any `.html` or `.md` file directly in the browser:
+
+![File review annotator](images/plan_annotate.png)
+
+**Browser review** — annotate a live Chrome tab via the side panel extension:
+
+![Browser extension side panel](images/browser_Ext.png)
+
+---
+
 ## Install
 
 **Ask Claude Code (recommended):**
