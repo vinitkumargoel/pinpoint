@@ -41,6 +41,16 @@ that produces the reviewed page. The brief includes:
   visual state of each annotated element, especially elements that were off-screen in the
   page overview. Make the edits, then briefly summarize what changed.
 
+**`# Pinpoint Ask — decision` (ask mode)** — the user answered a complex question you posed.
+Act on their decision. Each `##` section is one question; the ```json block at the end is the
+machine-readable answer keyed by question id (`chosen_id` / `chosen_ids` / `ranked_ids` /
+`text`, plus any `note`, and `skipped: true` for questions left blank). Prefer the JSON for
+exact ids; use the prose for the human-readable choices. Proceed with the work the answers
+unblock, and briefly confirm what you understood.
+
+**`Pinpoint Ask — no decision submitted`** — the user closed the tab without answering;
+acknowledge and ask how they'd like to proceed (don't guess the decision).
+
 **`✅ Approved`** — the user approved with no changes; acknowledge and make no edits.
 
 **`Review window closed`** or **`Browser session canceled`** — the user ended the review
@@ -55,3 +65,6 @@ Usage hints:
 - `/pinpoint review` — diff review (annotates `git diff HEAD` — staged + unstaged combined)
 - `/pinpoint browser` — browser review (then tell the user to open the Chrome extension on
   the target tab and click **Start**; **Stop** discards the draft and sends nothing)
+- `/pinpoint ask <path/to/spec.json>` — ask the user a complex question (richer than the
+  built-in question popup). Usually you'll invoke `pinpoint ask` yourself with a spec you
+  wrote — see the pinpoint skill for the spec format.

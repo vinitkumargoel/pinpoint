@@ -27,10 +27,12 @@ export interface ReviewAnchorLine {
   text: string;
 }
 
+import type { AskSpec } from "../../ask-spec.ts";
+
 export type Mode = "inspect" | "browse";
 export type Theme = "light" | "dark";
 
-export type SessionKind = "file" | "review";
+export type SessionKind = "file" | "review" | "ask";
 
 /** Header meta surfaced in the review shell's toolbar. */
 export interface ReviewMeta {
@@ -82,6 +84,8 @@ export interface PinpointConfig {
    * page instead of being captured as annotations, and a hint bar is shown.
    */
   interactive?: boolean;
+  /** The question spec for `kind === "ask"`. */
+  askSpec?: AskSpec;
 }
 
 /** In-iframe badge/highlight styling (kept independent of the app theme). */

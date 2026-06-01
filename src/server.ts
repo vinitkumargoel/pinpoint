@@ -1,5 +1,6 @@
 import { resolve, sep } from "node:path";
 import { renderMarkdown } from "./markdown.ts";
+import type { AskSpec } from "./ask-spec.ts";
 // Embedded at build time so the compiled binary is self-contained.
 // `with { type: "text" }` yields a string at runtime; the cast aligns the type.
 import annotatorHtmlRaw from "./ui/annotator.html" with { type: "text" };
@@ -49,11 +50,14 @@ export interface StartServerOptions {
    * Which UI shell the annotator should boot. "file" (default) is the existing
    * HTML / Markdown reviewer. "review" is the code-review shell — the iframe
    * holds a rendered git diff, the chrome surfaces branch / split-or-unified /
-   * file rail, and the brief is grouped by file:line.
+   * file rail, and the brief is grouped by file:line. "ask" is the complex-
+   * question flow — no target file, the UI renders the injected `askSpec`.
    */
-  kind?: "file" | "review";
+  kind?: "file" | "review" | "ask";
   /** Header meta surfaced in the review shell's toolbar. Ignored when kind=file. */
   meta?: ReviewMeta;
+  /** Question spec for kind="ask"; injected into the page for the Ask UI. */
+  askSpec?: AskSpec;
 }
 
 export interface RunningServer {
@@ -70,7 +74,11 @@ const API_PREFIX = "/__pinpoint";
 const HEARTBEAT_GRACE_MS = 4000;
 
 function injectConfig(html: string, cfg: Record<string, unknown>): string {
-  const tag = `<script>window.__PINPOINT__=${JSON.stringify(cfg)};</script>`;
+  // Escape "<" so no config value (notably an arbitrary `askSpec` string) can
+  // smuggle a "</script>" / "<!--" sequence that breaks out of the inline tag.
+  // `<` is a valid JS string escape, so the embedded JSON stays correct.
+  const json = JSON.stringify(cfg).replace(/</g, "\\u003c");
+  const tag = `<script>window.__PINPOINT__=${json};</script>`;
   if (html.includes("</head>")) return html.replace("</head>", `${tag}\n</head>`);
   return tag + html;
 }
@@ -96,6 +104,7 @@ export function startServer(opts: StartServerOptions): RunningServer {
     kind: opts.kind ?? "file",
     meta: opts.meta,
     interactive: opts.interactive ?? false,
+    askSpec: opts.askSpec,
   });
 
   let done = false;

@@ -1,0 +1,78 @@
+{
+  "title": "A few calls before I build the upload feature",
+  "intro": "Answer these and I'll wire everything up in one pass.",
+  "questions": [
+    {
+      "id": "storage",
+      "mode": "single",
+      "title": "How should we store uploaded files?",
+      "context": "This affects cost, speed, and how hard it is to move later. Pick one — add a note if you have a condition.",
+      "allowNote": true,
+      "options": [
+        {
+          "id": "object",
+          "name": "Cloud object storage",
+          "tag": "RECOMMENDED",
+          "desc": "Managed bucket. Cheap, scales endlessly, a little setup.",
+          "detail": [["Cost", "Lowest at scale"], ["Speed", "Fast, CDN-ready"], ["Lock-in", "Medium"], ["Setup", "~1 day"]],
+          "code": "storage: object\nbucket: app-uploads\nsigned_urls: true"
+        },
+        {
+          "id": "db",
+          "name": "Straight in the database",
+          "tag": "SIMPLEST",
+          "desc": "Easiest to ship. Gets slow and costly as files grow.",
+          "detail": [["Cost", "High past a few GB"], ["Speed", "Slows the DB"]]
+        },
+        {
+          "id": "disk",
+          "name": "Local disk on the server",
+          "tag": "FAST START",
+          "desc": "No extra service. Breaks with more than one server."
+        }
+      ]
+    },
+    {
+      "id": "empty",
+      "mode": "compare",
+      "title": "Pick the dashboard empty-state.",
+      "context": "First run, no data yet. Choose by looking.",
+      "options": [
+        { "id": "illus", "name": "Illustration + CTA", "preview": "   ( ^_^ )\n  ___________\n [ Get started ]" },
+        { "id": "check", "name": "Checklist onboarding", "preview": "[x] Connect data\n[ ] Invite team\n[ ] First report" },
+        { "id": "zero", "name": "Big zero metric", "preview": "      0\n  reports yet" }
+      ]
+    },
+    {
+      "id": "sprint",
+      "mode": "rank",
+      "title": "Order next sprint.",
+      "context": "Drag the handle, or use the arrows. Top = build first.",
+      "options": [
+        { "id": "filters", "name": "Search filters" },
+        { "id": "dark", "name": "Dark mode" },
+        { "id": "csv", "name": "CSV export" },
+        { "id": "sso", "name": "SSO login" }
+      ]
+    },
+    {
+      "id": "integ",
+      "mode": "multi",
+      "title": "Which integrations ship first?",
+      "context": "Pick all that should make the first cut.",
+      "allowNote": true,
+      "options": [
+        { "id": "slack", "name": "Slack", "desc": "Notify channels on events." },
+        { "id": "github", "name": "GitHub", "desc": "Link PRs & issues." },
+        { "id": "linear", "name": "Linear", "desc": "Two-way task sync." }
+      ]
+    },
+    {
+      "id": "concerns",
+      "mode": "text",
+      "title": "Anything else I should keep in mind?",
+      "context": "Optional — constraints, deadlines, gotchas.",
+      "placeholder": "e.g. must work offline for the demo on Friday…"
+    }
+  ]
+}

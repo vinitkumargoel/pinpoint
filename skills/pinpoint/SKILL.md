@@ -1,6 +1,6 @@
 ---
 name: pinpoint
-description: Open a visual browser annotator for an HTML/Markdown file, a live Chrome tab, or the working-tree git diff so the user can click elements/sections/lines and leave anchored comments, then act on the structured feedback they send back. Use when the user wants to visually review, annotate, mark up, or get feedback on an HTML mockup, a rendered page, a live local/staging web app, a Markdown plan/spec, or the code you just changed — e.g. "review this page", "annotate this mockup", "let me mark up the plan", "pinpoint this file", "pinpoint the browser", "review my changes", "let me mark up the diff" — or right after you generate an HTML/Markdown file, browser UI, or batch of code edits and want the user to mark it up before you iterate.
+description: Open a visual browser annotator for an HTML/Markdown file, a live Chrome tab, or the working-tree git diff so the user can click elements/sections/lines and leave anchored comments, then act on the structured feedback they send back. Use when the user wants to visually review, annotate, mark up, or get feedback on an HTML mockup, a rendered page, a live local/staging web app, a Markdown plan/spec, or the code you just changed — e.g. "review this page", "annotate this mockup", "let me mark up the plan", "pinpoint this file", "pinpoint the browser", "review my changes", "let me mark up the diff" — or right after you generate an HTML/Markdown file, browser UI, or batch of code edits and want the user to mark it up before you iterate. Also use `pinpoint ask` to put a complex decision to the user — richer than the quick built-in question popup — when the choice needs real context, many options, side-by-side comparison, ranking, picking several, or several linked questions; you author a JSON spec and a structured decision comes back.
 ---
 
 # Pinpoint — visual annotation review
@@ -36,6 +36,10 @@ is about something *visual or structural*:
 - **Diff review** — use when the user wants to review the working-tree changes (staged +
   unstaged) in the current git repo. Reach for this proactively after you've made a batch
   of code edits and want anchored line-level feedback before you commit or move on.
+- **Ask** — use when *you* need a decision from the *user* and it's too big for the quick
+  built-in question popup: lots of context to read, many options, options worth comparing
+  side-by-side, ranking, picking several, or several linked questions. You author a JSON
+  spec; the user answers in the browser; a structured decision returns on stdout.
 
 ## How to run it
 
@@ -75,6 +79,51 @@ Exits 0 with `No changes to review.` when the diff is empty; exits 1 with an act
 Untracked files are not rendered (yet) but their count is surfaced in a banner.
 
 The user can invoke diff review with `/pinpoint review`.
+
+**Ask (complex question):**
+```bash
+pinpoint ask <path/to/spec.json>
+```
+
+Write a question spec to a temp `.json` file, then run the command (it blocks until the user
+sends a decision or closes the tab). You can also pipe the spec on stdin: `pinpoint ask < spec.json`.
+
+The spec is JSON:
+
+```jsonc
+{
+  "title": "optional headline",
+  "intro": "optional one-liner",
+  "questions": [
+    {
+      "id": "storage",            // required, unique — becomes the key in the decision
+      "mode": "single",           // single | multi | rank | compare | text
+      "title": "How should we store uploads?",   // required — the question
+      "context": "Why this matters / the trade-offs.",  // optional framing shown as a Claude bubble
+      "allowNote": true,          // single|multi|compare: show an optional free-text note
+      "options": [                // required for single|multi|rank|compare (omit for text)
+        {
+          "id": "object",         // required, unique within the question
+          "name": "Cloud object storage",   // required — the label
+          "desc": "Cheap, scales, a little setup.",
+          "tag": "RECOMMENDED",   // optional chip
+          "detail": [["Cost","Low"],["Setup","~1 day"]],  // "the hider" — rows revealed on demand
+          "code": "storage: object",        // optional code/text shown in the hider
+          "preview": "ascii / code preview" // compare mode: shown side-by-side
+        }
+      ],
+      "placeholder": "for text mode"  // textarea placeholder
+    }
+  ]
+}
+```
+
+Mode cheat-sheet: **single** = pick one · **multi** = pick several · **rank** = drag/reorder ·
+**compare** = pick one by looking at side-by-side previews · **text** = free-form answer.
+Keep `id`s stable and meaningful — they're what comes back. Invalid specs fail fast with a
+precise message.
+
+The user can invoke it with `/pinpoint ask <spec.json>`.
 
 **List active reviews:**
 ```bash
@@ -150,6 +199,23 @@ data attributes are the authoritative reference. Summarize what you changed.
 Implement the requested changes in the code that produces the reviewed page. Use selectors,
 HTML context, comments, and the per-annotation screenshots together for precise targeting.
 Summarize what you changed.
+
+**`# Pinpoint Ask — decision` brief** — ask result. The user answered the question(s) you
+posed. Each `##` section is one question (human-readable choice + any note); the ```json
+block at the end is the authoritative, machine-readable decision keyed by question id:
+
+- `chosen_id` / `chosen` — single & compare (the selected option's id and name).
+- `chosen_ids` / `chosen` — multi (arrays of ids and names).
+- `ranked_ids` / `ranked` — rank (ids and names, top priority first).
+- `text` — text mode (the user's written answer).
+- `note` — present when the user attached a note to a single/multi/compare answer.
+- `skipped: true` — the user left that question blank.
+
+Parse the JSON for exact ids, use the prose for context, then proceed with the work the
+decision unblocks. Briefly confirm what you understood before acting on anything irreversible.
+
+**`Pinpoint Ask — no decision submitted (window closed).`** — the user closed the tab without
+answering; don't guess the decision — ask how they'd like to proceed.
 
 **`✅ Approved — no changes requested.`** — the user approved as-is; acknowledge, no edits.
 

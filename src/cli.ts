@@ -1,4 +1,5 @@
 import { annotate } from "./commands/annotate.ts";
+import { ask } from "./commands/ask.ts";
 import { browserSession } from "./commands/browser-session.ts";
 import { list } from "./commands/list.ts";
 import { review } from "./commands/review.ts";
@@ -10,6 +11,7 @@ const HELP = `pinpoint — visual HTML & Markdown annotator for Claude Code
 
 Usage:
   pinpoint annotate <file>       Open the annotator on an .html or .md file; print the feedback brief to stdout
+  pinpoint ask <spec.json>       Ask the user a complex question (JSON spec, or pipe on stdin); print the decision brief
   pinpoint review                Annotate the working-tree diff (vs HEAD) and print the brief
   pinpoint browser-session       Start a browser review session for the Chrome extension
   pinpoint browser               Shorthand for "browser-session"
@@ -51,6 +53,7 @@ export async function run(argv: string[]): Promise<void> {
   // help/version (handled above) and `list` (handled just above).
   const willOpenAnnotator =
     first === "annotate" ||
+    first === "ask" ||
     first === "review" ||
     first === "browser-session" ||
     first === "browser" ||
@@ -61,6 +64,10 @@ export async function run(argv: string[]): Promise<void> {
 
   if (first === "annotate") {
     await annotate(args.slice(1));
+    return;
+  }
+  if (first === "ask") {
+    await ask(args.slice(1));
     return;
   }
   if (first === "browser-session" || first === "browser") {
