@@ -21,6 +21,11 @@ const CHROME = `
     <div class="counts" data-role="counts">0 annotations</div>
     <button type="button" class="btn ghost theme-toggle" data-role="theme-toggle" data-shortcut="T" title="Toggle light / dark theme" aria-label="Toggle light or dark theme"><span data-role="theme-icon">&#127769;</span></button>
   </header>
+  <div class="mode-hint" data-role="mode-hint" hidden>
+    <span class="mode-hint-dot" aria-hidden="true"></span>
+    <span>Interactive page — <b>Browse</b> to click through, <b>Inspect</b> to annotate.</span>
+    <button type="button" class="mode-hint-x" data-role="mode-hint-dismiss" aria-label="Dismiss hint">&#10005;</button>
+  </div>
   <div class="canvas" data-role="canvas">
     <div class="frame-wrap">
       <iframe data-role="frame" sandbox="allow-same-origin allow-scripts allow-forms allow-popups"></iframe>
@@ -91,6 +96,19 @@ export const FileMode: Mode = {
     if (fn) {
       fn.textContent = CFG.fileName;
       fn.title = CFG.filePath;
+    }
+    // Interactive page: reveal the Browse/Inspect hint (the shell already booted
+    // in Browse via main.ts) and let the user dismiss it.
+    if (CFG.interactive) {
+      const hint = shell?.querySelector<HTMLElement>('[data-role="mode-hint"]');
+      if (hint) {
+        hint.hidden = false;
+        hint
+          .querySelector('[data-role="mode-hint-dismiss"]')
+          ?.addEventListener("click", () => {
+            hint.hidden = true;
+          });
+      }
     }
   },
 

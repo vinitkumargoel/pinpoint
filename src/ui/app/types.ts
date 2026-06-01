@@ -75,6 +75,13 @@ export interface PinpointConfig {
   apiBase: string;
   kind: SessionKind;
   meta?: ReviewMeta;
+  /**
+   * True when the target file looks like an interactive app (module/external/
+   * `text/babel` scripts, or a substantial inline script) rather than a static
+   * mockup. When set, the file shell boots in Browse mode so clicks drive the
+   * page instead of being captured as annotations, and a hint bar is shown.
+   */
+  interactive?: boolean;
 }
 
 /** In-iframe badge/highlight styling (kept independent of the app theme). */

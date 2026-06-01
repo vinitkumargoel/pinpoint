@@ -37,7 +37,25 @@ export async function annotate(args: string[]): Promise<void> {
   const project = basename(targetDir);
   const isMarkdown = /\.(md|markdown|mdown|mkd)$/i.test(fileName);
 
-  const { server, port, appUrl, result } = startServer({ targetDir, filePath, fileName, isMarkdown });
+  // Interactive pages (apps, not static mockups) boot the annotator in Browse
+  // mode so clicks drive the page instead of being captured as annotations.
+  // Markdown is always rendered to static HTML by us, so it's never interactive.
+  let interactive = false;
+  if (!isMarkdown) {
+    try {
+      interactive = looksInteractive(await Bun.file(filePath).text());
+    } catch {
+      // unreadable as text (e.g. binary) — treat as static
+    }
+  }
+
+  const { server, port, appUrl, result } = startServer({
+    targetDir,
+    filePath,
+    fileName,
+    isMarkdown,
+    interactive,
+  });
   const pid = process.pid;
 
   await writeSession({
@@ -92,4 +110,27 @@ export async function annotate(args: string[]): Promise<void> {
     process.stdout.write("Review window closed — no feedback submitted.\n");
   }
   process.exit(0);
+}
+
+/** Non-whitespace inline-script length (chars) above which a page reads as an app, not a doc. */
+const INTERACTIVE_INLINE_THRESHOLD = 600;
+
+/**
+ * Heuristic: does this HTML behave like an interactive app rather than a static
+ * mockup? True when it pulls in an external/module/`text/babel` script, or when
+ * its inline scripts add up to a substantial amount of code (a small toggle in a
+ * plan doc stays under the threshold, a Preact/vanilla app blows past it).
+ *
+ * False positives are cheap: the annotator just opens in Browse mode and shows a
+ * hint explaining the one-key switch to Inspect.
+ */
+export function looksInteractive(html: string): boolean {
+  if (/<script\b[^>]*\bsrc\s*=/i.test(html)) return true;
+  if (/<script\b[^>]*\btype\s*=\s*["'](module|text\/babel)["']/i.test(html)) return true;
+  let inlineChars = 0;
+  for (const m of html.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/gi)) {
+    inlineChars += (m[1] ?? "").replace(/\s+/g, "").length;
+    if (inlineChars >= INTERACTIVE_INLINE_THRESHOLD) return true;
+  }
+  return false;
 }

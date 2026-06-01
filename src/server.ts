@@ -40,6 +40,12 @@ export interface StartServerOptions {
   /** When true, the target file is Markdown and is rendered to HTML before it's served. */
   isMarkdown?: boolean;
   /**
+   * True when the target HTML looks like an interactive app (detected by the
+   * caller). Surfaced to the annotator so the file shell boots in Browse mode
+   * and shows a hint instead of swallowing clicks in Inspect mode.
+   */
+  interactive?: boolean;
+  /**
    * Which UI shell the annotator should boot. "file" (default) is the existing
    * HTML / Markdown reviewer. "review" is the code-review shell — the iframe
    * holds a rendered git diff, the chrome surfaces branch / split-or-unified /
@@ -89,6 +95,7 @@ export function startServer(opts: StartServerOptions): RunningServer {
     apiBase: API_PREFIX,
     kind: opts.kind ?? "file",
     meta: opts.meta,
+    interactive: opts.interactive ?? false,
   });
 
   let done = false;
