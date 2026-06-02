@@ -1,6 +1,6 @@
 ---
 name: pinpoint
-description: Open a visual browser annotator for an HTML/Markdown file, a live Chrome tab, or the working-tree git diff so the user can click elements/sections/lines and leave anchored comments, then act on the structured feedback they send back. Use when the user wants to visually review, annotate, mark up, or get feedback on an HTML mockup, a rendered page, a live local/staging web app, a Markdown plan/spec, or the code you just changed — e.g. "review this page", "annotate this mockup", "let me mark up the plan", "pinpoint this file", "pinpoint the browser", "review my changes", "let me mark up the diff" — or right after you generate an HTML/Markdown file, browser UI, or batch of code edits and want the user to mark it up before you iterate. Also use `pinpoint ask` to put a complex decision to the user — richer than the quick built-in question popup — when the choice needs real context, many options, side-by-side comparison, ranking, picking several, or several linked questions; you author a JSON spec and a structured decision comes back.
+description: Open a visual browser annotator for an HTML/Markdown file, a live Chrome tab, or the working-tree git diff so the user can click elements/sections/lines and leave anchored comments, then act on the structured feedback they send back. Use when the user wants to visually review, annotate, mark up, or get feedback on an HTML mockup, a rendered page, a live local/staging web app, a Markdown plan/spec, or the code you just changed — e.g. "review this page", "annotate this mockup", "let me mark up the plan", "pinpoint this file", "pinpoint the browser", "review my changes", "let me mark up the diff" — or right after you generate an HTML/Markdown file, browser UI, or batch of code edits and want the user to mark it up before you iterate. Also use `pinpoint ask` to put a complex decision to the user — richer than the quick built-in question popup — when the choice needs real context, many options, side-by-side comparison, ranking, picking several, or several linked questions; you author a JSON spec and a structured decision comes back. And run `pinpoint update` whenever the user asks to update, upgrade, or get the latest version of Pinpoint itself — e.g. "update pinpoint", "upgrade pinpoint", "get the latest pinpoint" — it re-runs the installer in place and refreshes the CLI, the /pinpoint command, and this skill.
 ---
 
 # Pinpoint — visual annotation review
@@ -124,6 +124,24 @@ Keep `id`s stable and meaningful — they're what comes back. Invalid specs fail
 precise message.
 
 The user can invoke it with `/pinpoint ask <spec.json>`.
+
+**Update Pinpoint itself:**
+```bash
+pinpoint update
+```
+
+Run this whenever the user wants to update / upgrade Pinpoint, or when you see the
+"Pinpoint update available" banner. It re-runs the canonical installer in place, so it:
+
+- For a managed install, fetches and hard-resets to the latest upstream commit, reinstalls
+  dependencies, and rebuilds the annotator UI.
+- For a local dev clone, reinstalls dependencies and rebuilds in place **without** resetting
+  — uncommitted work is never clobbered.
+- Either way, refreshes the `pinpoint` shim, the `/pinpoint` slash command, and this skill so
+  Claude Code picks up the newest behavior.
+
+It prints installer progress (not a feedback brief) and exits 0 on success. The user can
+invoke it with `/pinpoint update`.
 
 **List active reviews:**
 ```bash

@@ -3,6 +3,7 @@ import { ask } from "./commands/ask.ts";
 import { browserSession } from "./commands/browser-session.ts";
 import { list } from "./commands/list.ts";
 import { review } from "./commands/review.ts";
+import { update } from "./commands/update.ts";
 import { checkForUpdates } from "./update-check.ts";
 
 export const VERSION = "0.2.0";
@@ -17,6 +18,7 @@ Usage:
   pinpoint browser               Shorthand for "browser-session"
   pinpoint <file>                Shorthand for "annotate"
   pinpoint list                  List the review sessions running right now
+  pinpoint update                Update Pinpoint to the latest version (re-runs the installer)
   pinpoint --help                Show this help
   pinpoint --version             Show version
 
@@ -45,6 +47,11 @@ export async function run(argv: string[]): Promise<void> {
   // `list` is read-only and runs without the update check.
   if (first === "list") {
     await list();
+    return;
+  }
+  // `update` IS the update — skip the pre-command "update available" banner.
+  if (first === "update") {
+    await update(args.slice(1));
     return;
   }
 

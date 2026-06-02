@@ -68,3 +68,6 @@ Usage hints:
 - `/pinpoint ask <path/to/spec.json>` — ask the user a complex question (richer than the
   built-in question popup). Usually you'll invoke `pinpoint ask` yourself with a spec you
   wrote — see the pinpoint skill for the spec format.
+- `/pinpoint update` — update Pinpoint to the latest version (re-runs the installer in place,
+  refreshes the CLI, this command, and the skill). The output is installer progress, not a
+  review brief — just confirm it finished.
