@@ -27,6 +27,10 @@ is about something *visual or structural*:
   anchored feedback before iterating.
 - The user says things like "review this", "annotate the mockup", "mark up the plan",
   "pinpoint this", "open the annotator", "pinpoint the browser", or "review my changes".
+- **You need a complex decision from the user** — too big for the built-in question popup
+  (many options, side-by-side comparison, ranking, multi-select, or several linked
+  questions). Default to `pinpoint ask` over the quick popup whenever the choice carries
+  real trade-offs; reserve the built-in popup for quick, low-stakes single choices.
 
 ## Choose the right mode
 
