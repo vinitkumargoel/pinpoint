@@ -10,3 +10,14 @@ src/diff-runtime/runtime.bundle.js
 
 # Claude Code local-only settings (machine-specific paths, never share)
 .claude/settings.local.json
+
+# Local scratch prototypes / plans (session artifacts — not part of the project)
+ask-demo.html
+pinpoint-ask-plan.html
+plan.html
+
+# Spurious npm lockfile — this project uses bun (see bun.lock)
+package-lock.json
+
+# Playwright CLI wrapper output (local browser-test screenshots/traces)
+.playwright-cli/
