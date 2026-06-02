@@ -480,6 +480,11 @@ body[data-theme="dark"] .ask-root {
   width: 100%; max-width: 680px; background: var(--panel);
   border: 1px solid var(--border); border-radius: 14px;
   box-shadow: 0 4px 14px rgba(0,0,0,0.10), 0 20px 50px rgba(0,0,0,0.12); overflow: hidden;
+  /* Keep natural height in the column-flex scroller. Without this, the card's
+     own overflow:hidden gives it an automatic min-height of 0, so a tall
+     question gets shrunk to fit the viewport and clips the footer (Next
+     button) instead of letting .ask-root scroll. */
+  flex-shrink: 0;
 }
 .ask-bar { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-bottom: 1px solid var(--border); background: var(--bg); }
 .ask-dots { display: flex; gap: 6px; }
